@@ -8,6 +8,7 @@ final class AudioCapture {
 
     private var ioProcID: AudioDeviceIOProcID?
     private var callbackCount = 0
+    private var highestPeak: Float = 0
 
     init(device: AudioDevice, audioBuffer: AudioBuffer) {
         self.device = device
@@ -37,6 +38,7 @@ final class AudioCapture {
         if status == noErr {
             print("Sample Rate: \(format.mSampleRate)")
             print("Format ID: \(format.mFormatID)")
+            print("Format Flags: \(format.mFormatFlags)")
             print("Bits per channel: \(format.mBitsPerChannel)")
             print("Channels: \(format.mChannelsPerFrame)")
             print("Bytes per frame: \(format.mBytesPerFrame)")
@@ -73,8 +75,6 @@ final class AudioCapture {
 
                     capture.callbackCount += 1
 
-if capture.callbackCount % 500 == 0 {
-
     let bufferList = UnsafeMutableAudioBufferListPointer(
         UnsafeMutablePointer(mutating: inInputData)
     )
@@ -82,7 +82,7 @@ if capture.callbackCount % 500 == 0 {
     if let data = bufferList[0].mData {
 
         let samples = data.assumingMemoryBound(
-            to: Int32.self
+            to: Float.self
         )
 
         let sampleCount = Int(
@@ -93,31 +93,31 @@ if capture.callbackCount % 500 == 0 {
 
         for i in 0..<sampleCount {
 
-            if i == 0 {
-                print("Input first sample: \(samples[i])")
-            }
+            let magnitude = abs(samples[i])
 
-            let normalized = abs(Float(samples[i])) / Float(Int32.max)
-
-            if normalized > peak {
-                peak = normalized
+            if magnitude > peak {
+                peak = magnitude
             }
         }
 
-        print("Input peak level: \(peak)")
+        if peak > capture.highestPeak {
+            capture.highestPeak = peak
+        }
+
+        if capture.callbackCount % 500 == 0 {
+            print("Highest input peak: \(capture.highestPeak)")
+            capture.highestPeak = 0
+        }        
 
         let capturedSamples = Array(
             UnsafeBufferPointer(
                 start: samples,
                 count: sampleCount
             )
-        ).map {
-            Float($0) / Float(Int32.max)
-        }
+        )
 
         capture.audioBuffer.write(capturedSamples)        
 
-    }
 }
                 }
 

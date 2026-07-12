@@ -4,17 +4,15 @@ import CoreAudio
 final class AudioOutput {
 
     let device: AudioDevice
+    let audioBuffer: AudioBuffer
 
     private var ioProcID: AudioDeviceIOProcID?
-    private var callbackCount = 0
-    private var phase: Float = 0
-    private let toneFrequency: Float = 440
-    private let toneAmplitude: Float = 0.01
 
-    init(device: AudioDevice) {
+    init(device: AudioDevice, audioBuffer: AudioBuffer) {
         self.device = device
+        self.audioBuffer = audioBuffer
     }
-
+    
     private func printStreamFormat() {
 
     var address = AudioObjectPropertyAddress(
@@ -72,36 +70,33 @@ final class AudioOutput {
             .fromOpaque(clientData)
             .takeUnretainedValue()
 
-        output.callbackCount += 1
-
-        if output.callbackCount % 500 == 0 {
-            print("Output callbacks received: \(output.callbackCount)")
-        }
-
         let buffers = UnsafeMutableAudioBufferListPointer(
             outOutputData
         )
         
-        for buffer in buffers {
 
-            let samples = buffer.mData!.assumingMemoryBound(
-               to: Float.self
-            )
+for buffer in buffers {
 
-            let sampleCount = Int(buffer.mDataByteSize) /
-                MemoryLayout<Float>.size
+    let samples = buffer.mData!.assumingMemoryBound(
+        to: Float.self
+    )
 
-            for i in 0..<sampleCount {
+    let sampleCount = Int(buffer.mDataByteSize) /
+        MemoryLayout<Float>.size
 
-                samples[i] = sin(output.phase) * output.toneAmplitude
+    let incoming = output.audioBuffer.read(
+        count: sampleCount
+    )
 
-                output.phase += 2 * Float.pi * output.toneFrequency / 8000.0
+    for i in 0..<sampleCount {
 
-                if output.phase > 2 * Float.pi {
-                    output.phase -= 2 * Float.pi
-                }
-            }
+        if i < incoming.count {
+            samples[i] = incoming[i]
+        } else {
+            samples[i] = 0
         }
+    }
+}        
 
         return noErr
 

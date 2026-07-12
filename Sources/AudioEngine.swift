@@ -12,11 +12,16 @@ final class AudioEngine {
         let buffer = AudioBuffer()
 
         self.audioBuffer = buffer
+        
         self.capture = AudioCapture(
             device: route.input,
             audioBuffer: buffer
         )
-        self.output = AudioOutput(device: route.output)
+        
+        self.output = AudioOutput(
+            device: route.output,
+            audioBuffer: buffer
+        )
     }
 
     func start() {
