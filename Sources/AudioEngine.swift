@@ -5,9 +5,17 @@ final class AudioEngine {
 
     let capture: AudioCapture
     let output: AudioOutput
+    let audioBuffer: AudioBuffer
 
     init(route: IntercomRoute) {
-        self.capture = AudioCapture(device: route.input)
+
+        let buffer = AudioBuffer()
+
+        self.audioBuffer = buffer
+        self.capture = AudioCapture(
+            device: route.input,
+            audioBuffer: buffer
+        )
         self.output = AudioOutput(device: route.output)
     }
 

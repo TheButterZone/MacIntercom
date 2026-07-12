@@ -4,12 +4,14 @@ import CoreAudio
 final class AudioCapture {
 
     let device: AudioDevice
+    let audioBuffer: AudioBuffer
 
     private var ioProcID: AudioDeviceIOProcID?
     private var callbackCount = 0
 
-    init(device: AudioDevice) {
+    init(device: AudioDevice, audioBuffer: AudioBuffer) {
         self.device = device
+        self.audioBuffer = audioBuffer
     }
 
     private func printStreamFormat() {
@@ -103,6 +105,18 @@ if capture.callbackCount % 500 == 0 {
         }
 
         print("Input peak level: \(peak)")
+
+        let capturedSamples = Array(
+            UnsafeBufferPointer(
+                start: samples,
+                count: sampleCount
+            )
+        ).map {
+            Float($0) / Float(Int32.max)
+        }
+
+        capture.audioBuffer.write(capturedSamples)        
+
     }
 }
                 }
