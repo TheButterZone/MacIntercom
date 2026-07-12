@@ -6,6 +6,7 @@ final class AudioCapture {
     let device: AudioDevice
 
     private var ioProcID: AudioDeviceIOProcID?
+    private var callbackCount = 0
 
     init(device: AudioDevice) {
         self.device = device
@@ -29,11 +30,22 @@ final class AudioCapture {
                 clientData
             ) -> OSStatus in
 
-                print("Audio callback received")
+if let clientData = clientData {
+
+    let capture = Unmanaged<AudioCapture>
+        .fromOpaque(clientData)
+        .takeUnretainedValue()
+
+    capture.callbackCount += 1
+
+    if capture.callbackCount % 500 == 0 {
+        print("Callbacks received: \(capture.callbackCount)")
+    }
+}
 
                 return noErr
             },
-            nil,
+            UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
             &ioProcID
         )
 
