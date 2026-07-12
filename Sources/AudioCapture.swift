@@ -71,10 +71,40 @@ final class AudioCapture {
 
                     capture.callbackCount += 1
 
-                    if capture.callbackCount % 500 == 0 {
-                        print("Callbacks received: \(capture.callbackCount)")
-                        print("Buffer count: \(inInputData.pointee.mNumberBuffers)")
-                    }
+if capture.callbackCount % 500 == 0 {
+
+    let bufferList = UnsafeMutableAudioBufferListPointer(
+        UnsafeMutablePointer(mutating: inInputData)
+    )
+
+    if let data = bufferList[0].mData {
+
+        let samples = data.assumingMemoryBound(
+            to: Int32.self
+        )
+
+        let sampleCount = Int(
+            bufferList[0].mDataByteSize
+        ) / MemoryLayout<Float>.size
+
+        var peak: Float = 0
+
+        for i in 0..<sampleCount {
+
+            if i == 0 {
+                print("First sample: \(samples[i])")
+            }
+
+            let normalized = abs(Float(samples[i])) / Float(Int32.max)
+
+            if normalized > peak {
+                peak = normalized
+            }
+        }
+
+        print("Peak level: \(peak)")
+    }
+}
                 }
 
                 return noErr
