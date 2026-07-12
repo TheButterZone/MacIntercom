@@ -6,6 +6,7 @@ final class AudioOutput {
     let device: AudioDevice
     let audioBuffer: AudioBuffer
 
+    private var callbackCount = 0
     private var ioProcID: AudioDeviceIOProcID?
 
     init(device: AudioDevice, audioBuffer: AudioBuffer) {
@@ -69,6 +70,8 @@ final class AudioOutput {
         let output = Unmanaged<AudioOutput>
             .fromOpaque(clientData)
             .takeUnretainedValue()
+        
+        output.callbackCount += 1
 
         let buffers = UnsafeMutableAudioBufferListPointer(
             outOutputData
@@ -83,6 +86,14 @@ for buffer in buffers {
 
     let sampleCount = Int(buffer.mDataByteSize) /
         MemoryLayout<Float>.size
+
+    if output.callbackCount == 1 {
+        print("Output callback size: \(sampleCount) samples")
+    }
+
+    if output.callbackCount % 500 == 0 {
+        print("AudioBuffer depth: \(output.audioBuffer.sampleCount()) samples")
+    }
 
     let incoming = output.audioBuffer.read(
         count: sampleCount

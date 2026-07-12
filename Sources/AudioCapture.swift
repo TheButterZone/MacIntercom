@@ -54,7 +54,7 @@ final class AudioCapture {
         print("  ID: \(device.id)")
 
         printStreamFormat()
-
+        
         let status = AudioDeviceCreateIOProcID(
             device.id,
             { (
@@ -89,6 +89,10 @@ final class AudioCapture {
             bufferList[0].mDataByteSize
         ) / MemoryLayout<Float>.size
 
+        if capture.callbackCount == 1 {
+            print("Capture callback size: \(sampleCount) samples")
+        }
+
         var peak: Float = 0
 
         for i in 0..<sampleCount {
@@ -117,7 +121,6 @@ final class AudioCapture {
         )
 
         capture.audioBuffer.write(capturedSamples)        
-
 }
                 }
 

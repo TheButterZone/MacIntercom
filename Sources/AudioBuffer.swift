@@ -26,4 +26,12 @@ final class AudioBuffer {
         return result
     }
 
+    func sampleCount() -> Int {
+        lock.lock()
+        defer {
+            lock.unlock()
+        }
+
+        return samples.count
+    }
 }
