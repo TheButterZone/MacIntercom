@@ -7,6 +7,9 @@ final class AudioOutput {
 
     private var ioProcID: AudioDeviceIOProcID?
     private var callbackCount = 0
+    private var phase: Float = 0
+    private let toneFrequency: Float = 440
+    private let toneAmplitude: Float = 0.01
 
     init(device: AudioDevice) {
         self.device = device
@@ -30,29 +33,43 @@ final class AudioOutput {
                 clientData
             ) -> OSStatus in
 
-        if let clientData = clientData {
+        guard let clientData = clientData else {
+            return noErr
+        }
 
-            let output = Unmanaged<AudioOutput>
-                .fromOpaque(clientData)
-                .takeUnretainedValue()
+        let output = Unmanaged<AudioOutput>
+            .fromOpaque(clientData)
+            .takeUnretainedValue()
 
-            output.callbackCount += 1
+        output.callbackCount += 1
 
-            if output.callbackCount % 500 == 0 {
-                print("Output callbacks received: \(output.callbackCount)")
-            }
+        if output.callbackCount % 500 == 0 {
+            print("Output callbacks received: \(output.callbackCount)")
         }
 
         let buffers = UnsafeMutableAudioBufferListPointer(
             outOutputData
         )
-
+        
         for buffer in buffers {
-            memset(
-                buffer.mData,
-                0,
-                Int(buffer.mDataByteSize)
+
+            let samples = buffer.mData!.assumingMemoryBound(
+               to: Float.self
             )
+
+            let sampleCount = Int(buffer.mDataByteSize) /
+                MemoryLayout<Float>.size
+
+            for i in 0..<sampleCount {
+
+                samples[i] = sin(output.phase) * output.toneAmplitude
+
+                output.phase += 2 * Float.pi * output.toneFrequency / 8000.0
+
+                if output.phase > 2 * Float.pi {
+                    output.phase -= 2 * Float.pi
+                }
+            }
         }
 
         return noErr
