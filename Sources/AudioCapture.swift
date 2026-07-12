@@ -53,6 +53,8 @@ final class AudioCapture {
         print("  Device: \(device.name)")
         print("  ID: \(device.id)")
 
+	device.printInputStreams()
+
         printStreamFormat()
         
         let status = AudioDeviceCreateIOProcID(
