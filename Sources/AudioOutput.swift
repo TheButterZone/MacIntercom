@@ -15,11 +15,42 @@ final class AudioOutput {
         self.device = device
     }
 
+    private func printStreamFormat() {
+
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyStreamFormat,
+        mScope: kAudioDevicePropertyScopeOutput,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var format = AudioStreamBasicDescription()
+    var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+
+    let status = AudioObjectGetPropertyData(
+        device.id,
+        &address,
+        0,
+        nil,
+        &size,
+        &format
+    )
+
+    if status == noErr {
+
+        print("Output Sample Rate: \(format.mSampleRate)")
+        print("Output Format ID: \(format.mFormatID)")
+        print("Output Bits per channel: \(format.mBitsPerChannel)")
+        print("Output Channels: \(format.mChannelsPerFrame)")
+        print("Output Bytes per frame: \(format.mBytesPerFrame)")
+    }
+}
+
     func start() {
 
         print("Starting output:")
         print("  Device: \(device.name)")
         print("  ID: \(device.id)")
+        printStreamFormat()
 
         let status = AudioDeviceCreateIOProcID(
             device.id,
