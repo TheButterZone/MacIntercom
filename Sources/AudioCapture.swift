@@ -15,37 +15,43 @@ final class AudioCapture {
         self.audioBuffer = audioBuffer
     }
 
-    private func printStreamFormat() {
+private func inputFormat() -> AudioStreamBasicDescription? {
 
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyStreamFormat,
-            mScope: kAudioDevicePropertyScopeInput,
-            mElement: kAudioObjectPropertyElementMaster
-        )
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyStreamFormat,
+        mScope: kAudioDevicePropertyScopeInput,
+        mElement: kAudioObjectPropertyElementMaster
+    )
 
-        var format = AudioStreamBasicDescription()
-        var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+    var format = AudioStreamBasicDescription()
 
-        let status = AudioObjectGetPropertyData(
-            device.id,
-            &address,
-            0,
-            nil,
-            &size,
-            &format
-        )
+    var size = UInt32(
+        MemoryLayout<AudioStreamBasicDescription>.size
+    )
 
-        if status == noErr {
-            print("Sample Rate: \(format.mSampleRate)")
-            print("Format ID: \(format.mFormatID)")
-            print("Format Flags: \(format.mFormatFlags)")
-            print("Bits per channel: \(format.mBitsPerChannel)")
-            print("Channels: \(format.mChannelsPerFrame)")
-            print("Bytes per frame: \(format.mBytesPerFrame)")
-        } else {
-            print("Stream format error: \(status)")
-        }
+    let status = AudioObjectGetPropertyData(
+        device.id,
+        &address,
+        0,
+        nil,
+        &size,
+        &format
+    )
+
+    guard status == noErr else {
+        print("Stream format error: \(status)")
+        return nil
     }
+
+    print("Sample Rate: \(format.mSampleRate)")
+    print("Format ID: \(format.mFormatID)")
+    print("Format Flags: \(format.mFormatFlags)")
+    print("Bits per channel: \(format.mBitsPerChannel)")
+    print("Channels: \(format.mChannelsPerFrame)")
+    print("Bytes per frame: \(format.mBytesPerFrame)")
+
+    return format
+}
 
     func start() {
 
@@ -55,7 +61,9 @@ final class AudioCapture {
 
 	device.printInputStreams()
 
-        printStreamFormat()
+        guard let _ = inputFormat() else {
+    	    return
+	}
         
         let status = AudioDeviceCreateIOProcID(
             device.id,

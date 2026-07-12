@@ -186,14 +186,47 @@ struct AudioInspector {
 
 }
 
+    static func defaultOutputDevice() -> AudioDevice? {
+
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDefaultOutputDevice,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var deviceID = AudioDeviceID()
+    var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+
+    let status = AudioObjectGetPropertyData(
+        AudioObjectID(kAudioObjectSystemObject),
+        &address,
+        0,
+        nil,
+        &size,
+        &deviceID
+    )
+
+    guard status == noErr else {
+        return nil
+    }
+
+    return makeDevice(deviceID)
+}
+
     static func findIntercomRoute(
     _ endpoints: [BluetoothEndpoint]
 ) -> IntercomRoute? {
 
+    guard let output = defaultOutputDevice() else {
+        return nil
+    }
+
     for endpoint in endpoints {
 
-        if let input = endpoint.input,
-           let output = endpoint.output {
+        if let input = endpoint.input {
+
+	print("Selected input: \(input.name)")
+	print("Selected output: \(output.name)")
 
             return IntercomRoute(
                 input: input,

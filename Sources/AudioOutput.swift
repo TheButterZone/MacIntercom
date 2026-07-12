@@ -14,7 +14,7 @@ final class AudioOutput {
         self.audioBuffer = audioBuffer
     }
     
-    private func printStreamFormat() {
+    private func outputFormat() -> AudioStreamBasicDescription? {
 
     var address = AudioObjectPropertyAddress(
         mSelector: kAudioDevicePropertyStreamFormat,
@@ -34,22 +34,29 @@ final class AudioOutput {
         &format
     )
 
-    if status == noErr {
-
-        print("Output Sample Rate: \(format.mSampleRate)")
-        print("Output Format ID: \(format.mFormatID)")
-        print("Output Bits per channel: \(format.mBitsPerChannel)")
-        print("Output Channels: \(format.mChannelsPerFrame)")
-        print("Output Bytes per frame: \(format.mBytesPerFrame)")
+    if status != noErr {
+        print("Output stream format error: \(status)")
+        return nil
     }
+
+    print("Output Sample Rate: \(format.mSampleRate)")
+    print("Output Format ID: \(format.mFormatID)")
+    print("Output Bits per channel: \(format.mBitsPerChannel)")
+    print("Output Channels: \(format.mChannelsPerFrame)")
+    print("Output Bytes per frame: \(format.mBytesPerFrame)")
+
+    return format
 }
+
 
     func start() {
 
         print("Starting output:")
         print("  Device: \(device.name)")
         print("  ID: \(device.id)")
-        printStreamFormat()
+	guard let _ = outputFormat() else {
+    	    return
+	}
 
         let status = AudioDeviceCreateIOProcID(
             device.id,
@@ -95,16 +102,33 @@ for buffer in buffers {
         print("AudioBuffer depth: \(output.audioBuffer.sampleCount()) samples")
     }
 
-    let incoming = output.audioBuffer.read(
-        count: sampleCount
+    let mono = output.audioBuffer.read(
+        count: sampleCount / 2
     )
 
-    for i in 0..<sampleCount {
+    var monoIndex = 0
 
-        if i < incoming.count {
-            samples[i] = incoming[i]
+    for i in stride(from: 0, to: sampleCount, by: 2) {
+
+        if monoIndex < mono.count {
+
+            let sample = mono[monoIndex]
+
+            samples[i] = sample
+
+            if i + 1 < sampleCount {
+                samples[i + 1] = sample
+            }
+
+            monoIndex += 1
+
         } else {
+
             samples[i] = 0
+
+            if i + 1 < sampleCount {
+                samples[i + 1] = 0
+            }
         }
     }
 }        
