@@ -186,6 +186,25 @@ struct AudioInspector {
 
 }
 
+    static func findIntercomRoute(
+    _ endpoints: [BluetoothEndpoint]
+) -> IntercomRoute? {
+
+    for endpoint in endpoints {
+
+        if let input = endpoint.input,
+           let output = endpoint.output {
+
+            return IntercomRoute(
+                input: input,
+                output: output
+            )
+        }
+    }
+
+    return nil
+}
+
     static func groupBluetoothEndpoints(
     _ devices: [AudioDevice]
 ) -> [BluetoothEndpoint] {
@@ -300,6 +319,23 @@ for endpoint in endpoints {
     }
 
     text += "\n"
+}
+
+if let route = findIntercomRoute(endpoints) {
+
+    text += "Intercom Route Found:\n\n"
+
+    text += "Input:\n"
+    text += "  \(route.input.name)\n"
+    text += "  Device ID: \(route.input.id)\n\n"
+
+    text += "Output:\n"
+    text += "  \(route.output.name)\n"
+    text += "  Device ID: \(route.output.id)\n\n"
+
+} else {
+
+    text += "No intercom route found.\n\n"
 }
 
         return text
