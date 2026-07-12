@@ -186,6 +186,47 @@ struct AudioInspector {
 
 }
 
+    static func groupBluetoothEndpoints(
+    _ devices: [AudioDevice]
+) -> [BluetoothEndpoint] {
+
+    var groups: [String: BluetoothEndpoint] = [:]
+
+    for device in devices {
+
+        guard device.transport == "Bluetooth" else {
+            continue
+        }
+
+        let parts = device.uid.split(separator: ":")
+
+        guard parts.count > 1 else {
+            continue
+        }
+
+        let baseUID = String(parts[0])
+
+        if groups[baseUID] == nil {
+            groups[baseUID] = BluetoothEndpoint(
+                baseUID: baseUID,
+                name: device.name,
+                input: nil,
+                output: nil
+            )
+        }
+
+        if device.inputChannels > 0 {
+            groups[baseUID]?.input = device
+        }
+
+        if device.outputChannels > 0 {
+            groups[baseUID]?.output = device
+        }
+    }
+
+    return Array(groups.values)
+}
+
     static func inspect() -> String {
 
         var propertyAddress = AudioObjectPropertyAddress(
@@ -224,13 +265,15 @@ struct AudioInspector {
         if status != noErr {
             return "AudioObjectGetPropertyData failed: \(status)"
         }
-
+        
+        var devices: [AudioDevice] = []
         var text = ""
         text += "Core Audio reports \(deviceCount) audio device(s).\n\n"
 
     for id in deviceIDs {
 
     let device = makeDevice(id)
+    devices.append(device)
 
         text += "Device ID: \(device.id)\n"
         text += "UID: \(device.uid)\n"
@@ -238,6 +281,25 @@ struct AudioInspector {
         text += "Transport: \(device.transport)\n"
         text += "Input Channels: \(device.inputChannels)\n"
         text += "Output Channels: \(device.outputChannels)\n\n"
+}
+
+let endpoints = groupBluetoothEndpoints(devices)
+
+text += "Bluetooth Endpoints:\n\n"
+
+for endpoint in endpoints {
+    text += "Name: \(endpoint.name)\n"
+    text += "UID: \(endpoint.baseUID)\n"
+
+    if let input = endpoint.input {
+        text += "Input: \(input.id)\n"
+    }
+
+    if let output = endpoint.output {
+        text += "Output: \(output.id)\n"
+    }
+
+    text += "\n"
 }
 
         return text
