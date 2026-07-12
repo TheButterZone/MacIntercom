@@ -92,7 +92,7 @@ if capture.callbackCount % 500 == 0 {
         for i in 0..<sampleCount {
 
             if i == 0 {
-                print("First sample: \(samples[i])")
+                print("Input first sample: \(samples[i])")
             }
 
             let normalized = abs(Float(samples[i])) / Float(Int32.max)
@@ -102,7 +102,7 @@ if capture.callbackCount % 500 == 0 {
             }
         }
 
-        print("Peak level: \(peak)")
+        print("Input peak level: \(peak)")
     }
 }
                 }
