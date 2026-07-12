@@ -3,18 +3,14 @@ import CoreAudio
 
 final class AudioEngine {
 
-    let inputDevice: AudioDevice
+    let capture: AudioCapture
 
     init(route: IntercomRoute) {
-        self.inputDevice = route.input
+        self.capture = AudioCapture(device: route.input)
     }
 
     func start() {
-
-        print("Opening input device:")
-        print("  \(inputDevice.name)")
-        print("  Device ID: \(inputDevice.id)")
-
+        capture.start()
     }
 
 }
