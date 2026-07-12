@@ -3,6 +3,33 @@ import CoreAudio
 
 struct AudioInspector {
 
+    static func transportName(_ transport: UInt32) -> String {
+
+    switch transport {
+
+    case kAudioDeviceTransportTypeBuiltIn:
+        return "Built-in"
+
+    case kAudioDeviceTransportTypeBluetooth:
+        return "Bluetooth"
+
+    case kAudioDeviceTransportTypeUSB:
+        return "USB"
+
+    case kAudioDeviceTransportTypeAggregate:
+        return "Aggregate"
+
+    case kAudioDeviceTransportTypeVirtual:
+        return "Virtual"
+
+    case kAudioDeviceTransportTypeHDMI:
+        return "HDMI"
+
+    default:
+        return "Unknown (\(transport))"
+    }
+}
+
     static func deviceName(_ deviceID: AudioDeviceID) -> String {
 
         var address = AudioObjectPropertyAddress(
@@ -29,6 +56,60 @@ struct AudioInspector {
 
         return name as String
     }
+
+    static func deviceUID(_ deviceID: AudioDeviceID) -> String {
+
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyDeviceUID,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var uid: CFString = "" as CFString
+    var size = UInt32(MemoryLayout<CFString>.size)
+
+    let status = AudioObjectGetPropertyData(
+        deviceID,
+        &address,
+        0,
+        nil,
+        &size,
+        &uid
+    )
+
+    if status != noErr {
+        return "<error \(status)>"
+    }
+
+    return uid as String
+}
+
+    static func transportType(_ deviceID: AudioDeviceID) -> UInt32 {
+
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyTransportType,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var transport: UInt32 = 0
+    var size = UInt32(MemoryLayout<UInt32>.size)
+
+    let status = AudioObjectGetPropertyData(
+        deviceID,
+        &address,
+        0,
+        nil,
+        &size,
+        &transport
+    )
+
+    if status != noErr {
+        return 0
+    }
+
+    return transport
+}
 
     static func channelCount(
     _ deviceID: AudioDeviceID,
@@ -90,7 +171,9 @@ struct AudioInspector {
 
     return AudioDevice(
         id: id,
+        uid: deviceUID(id),
         name: deviceName(id),
+        transport: transportName(transportType(id)),
         inputChannels: channelCount(
             id,
             scope: kAudioDevicePropertyScopeInput
@@ -149,10 +232,12 @@ struct AudioInspector {
 
     let device = makeDevice(id)
 
-    text += "Device ID: \(device.id)\n"
-    text += "Name: \(device.name)\n"
-    text += "Input Channels: \(device.inputChannels)\n"
-    text += "Output Channels: \(device.outputChannels)\n\n"
+        text += "Device ID: \(device.id)\n"
+        text += "UID: \(device.uid)\n"
+        text += "Name: \(device.name)\n"
+        text += "Transport: \(device.transport)\n"
+        text += "Input Channels: \(device.inputChannels)\n"
+        text += "Output Channels: \(device.outputChannels)\n\n"
 }
 
         return text
