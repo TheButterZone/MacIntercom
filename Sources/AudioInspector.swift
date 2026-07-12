@@ -246,6 +246,55 @@ struct AudioInspector {
     return Array(groups.values)
 }
 
+    static func enumerateDevices() -> [AudioDevice] {
+
+    var propertyAddress = AudioObjectPropertyAddress(
+        mSelector: kAudioHardwarePropertyDevices,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var dataSize: UInt32 = 0
+
+    let systemObject = AudioObjectID(kAudioObjectSystemObject)
+
+    var status = AudioObjectGetPropertyDataSize(
+        systemObject,
+        &propertyAddress,
+        0,
+        nil,
+        &dataSize
+    )
+
+    if status != noErr {
+        return []
+    }
+
+    let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
+
+    var deviceIDs = Array(
+        repeating: AudioDeviceID(),
+        count: deviceCount
+    )
+
+    status = AudioObjectGetPropertyData(
+        systemObject,
+        &propertyAddress,
+        0,
+        nil,
+        &dataSize,
+        &deviceIDs
+    )
+
+    if status != noErr {
+        return []
+    }
+
+    return deviceIDs.map { id in
+        makeDevice(id)
+    }
+}
+
     static func inspect() -> String {
 
         var propertyAddress = AudioObjectPropertyAddress(
