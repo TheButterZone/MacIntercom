@@ -48,6 +48,34 @@ final class AudioOutput {
     return format
 }
 
+    static func defaultFormat(
+	for device: AudioDevice
+    ) -> AudioStreamBasicDescription? {
+
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyStreamFormat,
+        mScope: kAudioDevicePropertyScopeOutput,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var format = AudioStreamBasicDescription()
+    var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+
+    let status = AudioObjectGetPropertyData(
+        device.id,
+        &address,
+        0,
+        nil,
+        &size,
+        &format
+    )
+
+    guard status == noErr else {
+        return nil
+    }
+
+    return format
+}
 
     func start() {
 
@@ -94,42 +122,18 @@ for buffer in buffers {
     let sampleCount = Int(buffer.mDataByteSize) /
         MemoryLayout<Float>.size
 
-    if output.callbackCount == 1 {
-        print("Output callback size: \(sampleCount) samples")
-    }
-
-    if output.callbackCount % 500 == 0 {
-        print("AudioBuffer depth: \(output.audioBuffer.sampleCount()) samples")
-    }
-
-    let mono = output.audioBuffer.read(
-        count: sampleCount / 2
+    let stereo = output.audioBuffer.read(
+        count: sampleCount
     )
 
-    var monoIndex = 0
+    for i in 0..<sampleCount {
 
-    for i in stride(from: 0, to: sampleCount, by: 2) {
-
-        if monoIndex < mono.count {
-
-            let sample = mono[monoIndex]
-
-            samples[i] = sample
-
-            if i + 1 < sampleCount {
-                samples[i + 1] = sample
-            }
-
-            monoIndex += 1
-
-        } else {
-
+	if i < stereo.count {
+	    samples[i] = stereo[i]
+	} else {
             samples[i] = 0
+	}
 
-            if i + 1 < sampleCount {
-                samples[i + 1] = 0
-            }
-        }
     }
 }        
 

@@ -13,10 +13,11 @@ final class AudioEngine {
 
         self.audioBuffer = buffer
         
-        self.capture = AudioCapture(
-            device: route.input,
-            audioBuffer: buffer
-        )
+	self.capture = AudioCapture(
+	    device: route.input,
+	    outputDevice: route.output,
+	    audioBuffer: buffer
+	)
         
         self.output = AudioOutput(
             device: route.output,

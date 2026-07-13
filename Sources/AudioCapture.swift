@@ -4,14 +4,21 @@ import CoreAudio
 final class AudioCapture {
 
     let device: AudioDevice
+    let outputDevice: AudioDevice
     let audioBuffer: AudioBuffer
 
     private var ioProcID: AudioDeviceIOProcID?
     private var callbackCount = 0
     private var highestPeak: Float = 0
+    private var resampler: AudioResampler?
 
-    init(device: AudioDevice, audioBuffer: AudioBuffer) {
+    init(
+        device: AudioDevice,
+        outputDevice: AudioDevice,
+        audioBuffer: AudioBuffer
+	) {
         self.device = device
+        self.outputDevice = outputDevice
         self.audioBuffer = audioBuffer
     }
 
@@ -58,12 +65,18 @@ private func inputFormat() -> AudioStreamBasicDescription? {
         print("Starting capture:")
         print("  Device: \(device.name)")
         print("  ID: \(device.id)")
+	print(
+	    "Capture AudioBuffer:",
+	    ObjectIdentifier(self.audioBuffer)
+	)
 
 	device.printInputStreams()
 
-        guard let _ = inputFormat() else {
-    	    return
+	guard inputFormat() != nil else {
+	    return
 	}
+
+	resampler = AudioResampler()
         
         let status = AudioDeviceCreateIOProcID(
             device.id,
@@ -130,8 +143,13 @@ private func inputFormat() -> AudioStreamBasicDescription? {
             )
         )
 
-        capture.audioBuffer.write(capturedSamples)        
-}
+	let processed =
+	    capture.resampler?.process(
+		capturedSamples
+	    ) ?? capturedSamples
+
+	capture.audioBuffer.write(processed)
+	}
                 }
 
                 return noErr
