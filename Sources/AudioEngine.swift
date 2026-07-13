@@ -15,10 +15,9 @@ final class AudioEngine {
     ) {
 
         computerCapture = AudioCapture(
-            device: computerRoute.input,
-            outputDevice: computerRoute.output,
-            audioBuffer: bluetoothBuffer
-        )
+    	    device: computerRoute.input,
+	    audioBuffer: bluetoothBuffer
+	)
 
         bluetoothOutput = AudioOutput(
             device: computerRoute.output,

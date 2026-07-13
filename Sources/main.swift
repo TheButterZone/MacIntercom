@@ -1,16 +1,48 @@
 import Foundation
 
-let devices = AudioInspector.enumerateDevices()
-
-let endpoints = AudioInspector.groupBluetoothEndpoints(devices)
-
-guard let route = AudioInspector.findIntercomRoute(endpoints) else {
-    print("No intercom route found")
+guard let bluetoothRoute =
+    AudioInspector.bluetoothToComputerRoute()
+else {
+    print("No Bluetooth → Computer route")
     exit(1)
 }
 
-let engine = AudioEngine(route: route)
+guard let computerRoute =
+    AudioInspector.computerToBluetoothRoute()
+else {
+    print("No Computer → Bluetooth route")
+    exit(1)
+}
 
-engine.start()
+print("Bluetooth route:")
+print("  Input : \(bluetoothRoute.input.name)")
+print("  Output: \(bluetoothRoute.output.name)")
+
+print("Computer route:")
+print("  Input : \(computerRoute.input.name)")
+print("  Output: \(computerRoute.output.name)")
+
+AudioInspector.printBufferFrameSize(
+    bluetoothRoute.input
+)
+
+AudioInspector.printBufferFrameSize(
+    bluetoothRoute.output
+)
+
+AudioInspector.printBufferFrameSize(
+    computerRoute.input
+)
+
+AudioInspector.printBufferFrameSize(
+    computerRoute.output
+)
+
+let computerEngine =
+    ComputerToBluetoothEngine(
+        route: computerRoute
+    )
+
+computerEngine.start()
 
 RunLoop.main.run()

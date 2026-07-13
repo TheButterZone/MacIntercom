@@ -30,6 +30,44 @@ struct AudioInspector {
     }
 }
 
+static func printBufferFrameSize(
+    _ device: AudioDevice
+) {
+
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyBufferFrameSize,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var frames: UInt32 = 0
+    var size = UInt32(MemoryLayout<UInt32>.size)
+
+    let status = AudioObjectGetPropertyData(
+        device.id,
+        &address,
+        0,
+        nil,
+        &size,
+        &frames
+    )
+
+    if status == noErr {
+
+        print(
+            "\(device.name) buffer frame size:",
+            frames
+        )
+
+    } else {
+
+        print(
+            "\(device.name) buffer frame size error:",
+            status
+        )
+    }
+}
+
     static func deviceName(_ deviceID: AudioDeviceID) -> String {
 
         var address = AudioObjectPropertyAddress(
@@ -213,32 +251,85 @@ struct AudioInspector {
     return makeDevice(deviceID)
 }
 
-    static func findIntercomRoute(
+static func findIntercomRoute(
     _ endpoints: [BluetoothEndpoint]
 ) -> IntercomRoute? {
 
-    guard let output = defaultOutputDevice() else {
+    guard let bluetooth = endpoints.first(
+        where: { $0.output != nil }
+    ) else {
         return nil
     }
 
-    for endpoint in endpoints {
+    let devices = enumerateDevices()
 
-        if let input = endpoint.input {
-
-	print("Selected input: \(input.name)")
-	print("Selected output: \(output.name)")
-
-            return IntercomRoute(
-                input: input,
-                output: output
-            )
+    guard let builtInMic = devices.first(
+        where: {
+            $0.transport == "Built-in"
+            && $0.inputChannels > 0
         }
+    ) else {
+        return nil
     }
 
-    return nil
+    return IntercomRoute(
+        input: builtInMic,
+        output: bluetooth.output!
+    )
 }
 
-    static func groupBluetoothEndpoints(
+static func bluetoothToComputerRoute() -> IntercomRoute? {
+
+    let endpoints = groupBluetoothEndpoints(
+        enumerateDevices()
+    )
+
+    guard let bluetooth = endpoints.first(
+        where: { $0.input != nil }
+    ) else {
+        return nil
+    }
+
+    guard let computer = defaultOutputDevice() else {
+        return nil
+    }
+
+    return IntercomRoute(
+        input: bluetooth.input!,
+        output: computer
+    )
+}
+
+static func computerToBluetoothRoute() -> IntercomRoute? {
+
+    let endpoints = groupBluetoothEndpoints(
+        enumerateDevices()
+    )
+
+    guard let bluetooth = endpoints.first(
+        where: { $0.output != nil }
+    ) else {
+        return nil
+    }
+
+    let devices = enumerateDevices()
+
+    guard let computerMic = devices.first(
+        where: {
+            $0.transport == "Built-in"
+            && $0.inputChannels > 0
+        }
+    ) else {
+        return nil
+    }
+
+    return IntercomRoute(
+        input: computerMic,
+        output: bluetooth.output!
+    )
+}
+
+static func groupBluetoothEndpoints(
     _ devices: [AudioDevice]
 ) -> [BluetoothEndpoint] {
 
