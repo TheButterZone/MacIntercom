@@ -9,8 +9,11 @@ final class AudioCapture {
 
     private var ioProcID: AudioDeviceIOProcID?
     private var callbackCount = 0
+    private var lastCallbackTime = CFAbsoluteTimeGetCurrent()
     private var highestPeak: Float = 0
+    private var highestProcessedPeak: Float = 0
     private var resampler: AudioResampler?
+    private var inputChannels: UInt32 = 1
 
     init(
         device: AudioDevice,
@@ -66,17 +69,30 @@ private func inputFormat() -> AudioStreamBasicDescription? {
         print("  Device: \(device.name)")
         print("  ID: \(device.id)")
 	print(
-	    "Capture AudioBuffer:",
+	    "Capture (\(device.name)) AudioBuffer:",
 	    ObjectIdentifier(self.audioBuffer)
 	)
 
 	device.printInputStreams()
 
-	guard inputFormat() != nil else {
+	guard let input = inputFormat() else {
+	    return
+	}
+	
+	print("Capture channels:", input.mChannelsPerFrame)
+
+	inputChannels = input.mChannelsPerFrame
+
+	guard let output = AudioOutput.defaultFormat(
+	    for: outputDevice
+	) else {
 	    return
 	}
 
-	resampler = AudioResampler()
+	resampler = AudioResampler(
+	    inputSampleRate: input.mSampleRate,
+	    outputSampleRate: output.mSampleRate
+	)
         
         let status = AudioDeviceCreateIOProcID(
             device.id,
@@ -101,6 +117,27 @@ private func inputFormat() -> AudioStreamBasicDescription? {
     let bufferList = UnsafeMutableAudioBufferListPointer(
         UnsafeMutablePointer(mutating: inInputData)
     )
+
+if capture.callbackCount == 1 {
+
+    print(
+        capture.device.name,
+        "input buffer count:",
+        bufferList.count
+    )
+
+    for (index, buffer) in bufferList.enumerated() {
+
+        print(
+            "buffer",
+            index,
+            "channels:",
+            buffer.mNumberChannels,
+            "bytes:",
+            buffer.mDataByteSize
+        )
+    }
+}
 
     if let data = bufferList[0].mData {
 
@@ -134,21 +171,147 @@ private func inputFormat() -> AudioStreamBasicDescription? {
         if capture.callbackCount % 500 == 0 {
             print("Highest input peak: \(capture.highestPeak)")
             capture.highestPeak = 0
-        }        
+        }   
 
-        let capturedSamples = Array(
-            UnsafeBufferPointer(
-                start: samples,
-                count: sampleCount
-            )
+	if capture.callbackCount % 100 == 0 {
+
+    	    let now = CFAbsoluteTimeGetCurrent()
+
+    	    print(
+		capture.device.name,
+		"100 capture callbacks in",
+		now - capture.lastCallbackTime,
+		"seconds"
+	    )
+
+    	    capture.lastCallbackTime = now
+	}     
+
+var monoSamples: [Float]
+
+if capture.inputChannels == 1 {
+
+    monoSamples = Array(
+        UnsafeBufferPointer(
+            start: samples,
+            count: sampleCount
         )
+    )
+
+} else {
+
+    monoSamples = []
+    monoSamples.reserveCapacity(sampleCount / 2)
+
+    var i = 0
+
+    while i + 1 < sampleCount {
+
+        let left = samples[i]
+        let right = samples[i + 1]
+
+        monoSamples.append(
+            (left + right) * 0.5
+        )
+
+        i += 2
+    }
+}
 
 	let processed =
 	    capture.resampler?.process(
-		capturedSamples
-	    ) ?? capturedSamples
+	        monoSamples
+	    ) ?? monoSamples
+
+if capture.callbackCount % 100 == 0 {
+
+    print(
+        capture.device.name,
+        "mono:",
+        monoSamples.count,
+        "processed:",
+        processed.count
+    )
+}
+
+if capture.callbackCount % 100 == 0 && !processed.isEmpty {
+
+    print(
+        capture.device.name,
+        "first processed sample:",
+        processed[0]
+    )
+}
+
+for sample in processed {
+
+    let magnitude = abs(sample)
+
+    if magnitude > capture.highestProcessedPeak {
+        capture.highestProcessedPeak = magnitude
+    }
+}
+
+if capture.callbackCount % 500 == 0 {
+
+    print(
+        capture.device.name,
+        "highest processed peak:",
+        capture.highestProcessedPeak
+    )
+
+    capture.highestProcessedPeak = 0
+}
+
+var writePeak: Float = 0
+
+for sample in processed {
+
+    let m = abs(sample)
+
+    if m > writePeak {
+        writePeak = m
+    }
+}
+
+print(
+    capture.audioBuffer.name,
+    "ABOUT TO WRITE peak:",
+    writePeak,
+    "count:",
+    processed.count
+)
 
 	capture.audioBuffer.write(processed)
+
+if capture.callbackCount % 1000 == 0 {
+
+    print(
+        capture.device.name,
+        "TOTAL capture callbacks:",
+        capture.callbackCount
+    )
+}
+
+if capture.callbackCount % 20 == 0 {
+
+    print(
+        "\(capture.device.name) captured",
+        processed.count,
+        "floats"
+    )
+}
+
+if capture.callbackCount % 20 == 0 {
+
+    print(
+        "\(capture.audioBuffer.name) wrote",
+        ObjectIdentifier(capture.audioBuffer),
+        processed.count,
+        "floats, queue:",
+        capture.audioBuffer.sampleCount()
+    )
+}
 	}
                 }
 

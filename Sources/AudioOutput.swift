@@ -7,6 +7,7 @@ final class AudioOutput {
     let audioBuffer: AudioBuffer
 
     private var callbackCount = 0
+    private var lastCallbackTime = CFAbsoluteTimeGetCurrent()
     private var ioProcID: AudioDeviceIOProcID?
 
     init(device: AudioDevice, audioBuffer: AudioBuffer) {
@@ -82,6 +83,10 @@ final class AudioOutput {
         print("Starting output:")
         print("  Device: \(device.name)")
         print("  ID: \(device.id)")
+	print(
+	    "Output (\(device.name)) AudioBuffer:",
+	    ObjectIdentifier(audioBuffer)
+	)
 	guard let _ = outputFormat() else {
     	    return
 	}
@@ -107,10 +112,44 @@ final class AudioOutput {
             .takeUnretainedValue()
         
         output.callbackCount += 1
+	if output.callbackCount % 100 == 0 {
+
+	    let now = CFAbsoluteTimeGetCurrent()
+
+	    print(
+		output.device.name,
+		"100 output callbacks in",
+		now - output.lastCallbackTime,
+		"seconds"
+	    )
+
+    	    output.lastCallbackTime = now
+	}
 
         let buffers = UnsafeMutableAudioBufferListPointer(
             outOutputData
         )
+
+if output.callbackCount == 1 {
+
+    print(
+        output.device.name,
+        "buffer count:",
+        buffers.count
+    )
+
+    for (index, buffer) in buffers.enumerated() {
+
+        print(
+            "buffer",
+            index,
+            "channels:",
+            buffer.mNumberChannels,
+            "bytes:",
+            buffer.mDataByteSize
+        )
+    }
+}
         
 
 for buffer in buffers {
@@ -120,20 +159,149 @@ for buffer in buffers {
     )
 
     let sampleCount = Int(buffer.mDataByteSize) /
-        MemoryLayout<Float>.size
+	MemoryLayout<Float>.size
 
-    let stereo = output.audioBuffer.read(
-        count: sampleCount
+if sampleCount != 1024 {
+
+    print(
+        output.device.name,
+        "callback changed to",
+        sampleCount,
+        "floats"
     )
+}
 
-    for i in 0..<sampleCount {
+    if output.callbackCount == 1 {
 
-	if i < stereo.count {
-	    samples[i] = stereo[i]
-	} else {
-            samples[i] = 0
+    	print(
+	    "Output \(output.device.name) callback size:",
+            sampleCount,
+            "floats"
+	)
+    }
+
+let requested = sampleCount / 2
+
+let before = output.audioBuffer.sampleCount()
+
+let mono = output.audioBuffer.read(
+    count: requested
+)
+
+let after = output.audioBuffer.sampleCount()
+
+if output.callbackCount % 100 == 0 {
+
+    print(
+        output.audioBuffer.name,
+        "before:",
+        before,
+        "requested:",
+        requested,
+        "returned:",
+        mono.count,
+        "after:",
+        after
+    )
+}
+
+if output.callbackCount % 1000 == 0 {
+
+    print(
+        output.device.name,
+        "TOTAL output callbacks:",
+        output.callbackCount
+    )
+}
+
+var maxRead: Float = 0
+
+for sample in mono {
+
+    let magnitude = abs(sample)
+
+    if magnitude > maxRead {
+        maxRead = magnitude
+    }
+}
+
+if output.callbackCount % 100 == 0 {
+
+    print(
+        output.device.name,
+        "read peak:",
+        maxRead
+    )
+}
+
+if output.callbackCount % 20 == 0 {
+
+    print(
+        output.device.name,
+        "requested:",
+        requested,
+        "returned:",
+        mono.count,
+        "queue:",
+        output.audioBuffer.sampleCount()
+    )
+}
+
+if output.callbackCount % 200 == 0 {
+
+//    print(
+//        "\(output.audioBuffer.name)",
+//        ObjectIdentifier(output.audioBuffer),
+//        "read",
+//        mono.count,
+//        "queue:",
+//        output.audioBuffer.sampleCount()
+//    )
+}
+
+    var out = 0
+
+var peak: Float = 0
+
+for sample in mono {
+
+    let magnitude = abs(sample)
+
+    if magnitude > peak {
+        peak = magnitude
+    }
+}
+
+if output.callbackCount % 100 == 0 {
+
+    print(
+        output.device.name,
+        "output peak:",
+        peak
+    )
+}
+
+for sample in mono {
+
+    if out + 1 >= sampleCount {
+        break
+    }
+
+    samples[out] = sample
+    samples[out + 1] = sample
+
+    out += 2
+}
+
+    while out < sampleCount {
+
+	samples[out] = 0
+
+	if out + 1 < sampleCount {
+            samples[out + 1] = 0
 	}
 
+	out += 2
     }
 }        
 

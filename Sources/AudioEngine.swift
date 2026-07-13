@@ -3,31 +3,45 @@ import CoreAudio
 
 final class AudioEngine {
 
-    let capture: AudioCapture
-    let output: AudioOutput
-    let audioBuffer: AudioBuffer
+    private let bluetoothBuffer =
+        AudioBuffer(name: "Computer→BT TEST")
 
-    init(route: IntercomRoute) {
+    private let computerCapture: AudioCapture
+    private let bluetoothOutput: AudioOutput
 
-        let buffer = AudioBuffer()
+    init(
+        bluetoothRoute: IntercomRoute,
+        computerRoute: IntercomRoute
+    ) {
 
-        self.audioBuffer = buffer
-        
-	self.capture = AudioCapture(
-	    device: route.input,
-	    outputDevice: route.output,
-	    audioBuffer: buffer
-	)
-        
-        self.output = AudioOutput(
-            device: route.output,
-            audioBuffer: buffer
+        computerCapture = AudioCapture(
+            device: computerRoute.input,
+            outputDevice: computerRoute.output,
+            audioBuffer: bluetoothBuffer
+        )
+
+        bluetoothOutput = AudioOutput(
+            device: computerRoute.output,
+            audioBuffer: bluetoothBuffer
+        )
+
+        print(
+            "TEST buffer:",
+            ObjectIdentifier(bluetoothBuffer)
+        )
+
+        print(
+            "TEST path:",
+            computerRoute.input.name,
+            "→",
+            computerRoute.output.name
         )
     }
 
     func start() {
-        capture.start()
-        output.start()
-    }
 
+        computerCapture.start()
+
+        bluetoothOutput.start()
+    }
 }
