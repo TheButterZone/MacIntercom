@@ -7,13 +7,26 @@ final class AudioCapture {
     let audioBuffer: AudioBuffer
 
     private var ioProcID: AudioDeviceIOProcID?
+
+    private var currentGain: Float = 1.0
+    private var smoothedPeak: Float = 0.05
+
+    private var processCount = 0
     private var callbackCount = 0
     private var highestPeak: Float = 0
+    private var highestProcessedPeak: Float = 0
 
 private let shouldDownsample: Bool
 
 private var downsampleAccumulator: Float = 0
 private var downsampleCount = 0
+
+private var upsamplePrintCount = 0
+
+private let upsampler = AudioResampler(
+    inputSampleRate: 8000,
+    outputSampleRate: 48000
+)
 
 init(
     device: AudioDevice,
@@ -111,6 +124,19 @@ if AudioObjectGetPropertyData(
         UnsafeMutablePointer(mutating: inInputData)
     )
 
+if capture.callbackCount == 1 {
+    print("Audio buffers:", bufferList.count)
+
+    for (index, buffer) in bufferList.enumerated() {
+        print(
+            "Buffer",
+            index,
+            "bytes:",
+            buffer.mDataByteSize
+        )
+    }
+}
+
     if let data = bufferList[0].mData {
 
         let samples = data.assumingMemoryBound(
@@ -158,20 +184,85 @@ if capture.callbackCount == 1 {
 
 if capture.shouldDownsample {
 
+    let mono8k = capture.downsampleTo8kMono(
+        capturedSamples
+    )
+
+    let leveled = capture.applyAutomaticGain(
+        mono8k
+    )
+
+for sample in leveled {
+    let peak = abs(sample)
+
+    if peak > capture.highestProcessedPeak {
+        capture.highestProcessedPeak = peak
+    }
+}
+
+if capture.callbackCount % 500 == 0 {
+    print("Highest processed peak: \(capture.highestProcessedPeak)")
+    capture.highestProcessedPeak = 0
+}
+
+if capture.callbackCount % 500 == 0 {
+    print(
+        "Gain:",
+        capture.currentGain,
+        "Peak:",
+        capture.smoothedPeak
+    )
+}
+
     capture.audioBuffer.write(
-        capture.downsampleTo8kMono(
-            capturedSamples
-        )
+        leveled
     )
 
 } else {
 
-    capture.audioBuffer.write(
-        capture.upsampleTo48kStereo(
-            capturedSamples
-        )
+    let stereo48k = capture.upsampleTo48kStereo(
+        capturedSamples
     )
-}     
+
+    let leveled = capture.applyAutomaticGain(
+        stereo48k
+    )
+
+for sample in leveled {
+    let peak = abs(sample)
+
+    if peak > capture.highestProcessedPeak {
+        capture.highestProcessedPeak = peak
+    }
+}
+
+if capture.callbackCount % 500 == 0 {
+    print("Highest processed peak: \(capture.highestProcessedPeak)")
+    capture.highestProcessedPeak = 0
+}
+
+if capture.callbackCount % 500 == 0 {
+    print(
+        "Gain:",
+        capture.currentGain,
+        "Peak:",
+        capture.smoothedPeak
+    )
+}
+
+    capture.audioBuffer.write(
+        leveled
+    )
+
+if capture.callbackCount % 100 == 0 {
+
+    print(
+        "BT queue:",
+        capture.audioBuffer.sampleCount()
+    )
+}
+
+} 
 
 }
                 }
@@ -196,6 +287,71 @@ if capture.shouldDownsample {
             print("Failed to start device: \(startStatus)")
         }
     }
+
+private func applyAutomaticGain(
+    _ samples: [Float]
+) -> [Float] {
+
+    var output = samples
+
+    // Find the loudest sample in this buffer.
+    var bufferPeak: Float = 0
+
+    for sample in output {
+        bufferPeak = max(bufferPeak, abs(sample))
+    }
+
+    // Update the envelope once per buffer.
+    smoothedPeak =
+        smoothedPeak * 0.95 +
+        bufferPeak * 0.05
+
+let targetLevel: Float = 0.35
+let minimumSignalLevel: Float = 0.02
+
+var targetGain: Float
+
+if smoothedPeak > minimumSignalLevel {
+
+    targetGain =
+        targetLevel / smoothedPeak
+
+} else {
+
+    targetGain = max(
+        1.0,
+        currentGain * 0.999
+    )
+}
+
+targetGain = min(
+    targetGain,
+    20.0
+)
+
+    currentGain +=
+        (targetGain - currentGain) * 0.01
+
+    let maxOutput: Float = 0.8
+
+    for i in 0..<output.count {
+
+        var sample =
+            output[i] * currentGain
+
+        sample = max(
+            -maxOutput,
+            min(
+                maxOutput,
+                sample
+            )
+        )
+
+        output[i] = sample
+    }
+
+    return output
+}
 
 private func downsampleTo8kMono(
     _ samples: [Float]
@@ -230,9 +386,24 @@ private func downsampleTo8kMono(
         let right =
             right0 + (right1 - right0) * fraction
 
-        output.append(
-    	    left + right
-	)
+let mono: Float
+
+let leftLevel = abs(left)
+let rightLevel = abs(right)
+
+if leftLevel > rightLevel * 2 {
+    mono = left
+}
+else if rightLevel > leftLevel * 2 {
+    mono = right
+}
+else {
+    mono = (left + right) * 0.5
+}
+
+output.append(
+    max(-1.0, min(1.0, mono))
+)
 
         position += step
     }
@@ -240,16 +411,35 @@ private func downsampleTo8kMono(
     return output
 }
 
-private let upsampler = AudioResampler(
-    inputSampleRate: 8000,
-    outputSampleRate: 48000
-)
-
 private func upsampleTo48kStereo(
     _ samples: [Float]
 ) -> [Float] {
 
-    return upsampler.process(samples)
+    let mono = upsampler.process(samples)
+
+    var stereo: [Float] = []
+    stereo.reserveCapacity(mono.count * 2)
+
+    for sample in mono {
+        stereo.append(sample) // Left
+        stereo.append(sample) // Right
+    }
+
+upsamplePrintCount += 1
+
+if upsamplePrintCount % 100 == 0 {
+
+    print(
+        "Upsampler:",
+        samples.count,
+        "->",
+        mono.count,
+        "->",
+        stereo.count
+    )
+}
+
+return stereo
 }
 
 }
