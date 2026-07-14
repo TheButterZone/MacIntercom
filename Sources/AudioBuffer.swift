@@ -50,6 +50,12 @@ func write(_ newSamples: [Float]) {
 
     samples.append(contentsOf: newSamples)
 
+let maxQueued = 12288
+
+if samples.count > maxQueued {
+    samples.removeFirst(samples.count - maxQueued)
+}
+
 totalWritten += newSamples.count
 
 writtenThisSecond += newSamples.count

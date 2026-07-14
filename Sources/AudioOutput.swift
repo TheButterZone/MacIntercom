@@ -107,6 +107,15 @@ if AudioObjectGetPropertyData(
 
         output.callbackCount += 1
 
+if output.callbackCount % 100 == 0 {
+
+    print(
+        output.device.name,
+        "output callbacks:",
+        output.callbackCount
+    )
+}
+
         let buffers = UnsafeMutableAudioBufferListPointer(
             outOutputData
         )
