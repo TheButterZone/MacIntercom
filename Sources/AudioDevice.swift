@@ -16,10 +16,10 @@ extension AudioDevice {
 
     func printInputStreams() {
 
-        var address = AudioObjectPropertyAddress(
+    var address = AudioObjectPropertyAddress(
             mSelector: kAudioDevicePropertyStreams,
             mScope: kAudioDevicePropertyScopeInput,
-            mElement: kAudioObjectPropertyElementMaster
+            mElement: UInt32(0)
         )
 
         var size: UInt32 = 0
@@ -69,10 +69,10 @@ extension AudioDevice {
 
     func printAvailableFormats(for streamID: AudioObjectID) {
 
-        var address = AudioObjectPropertyAddress(
+    var address = AudioObjectPropertyAddress(
         mSelector: kAudioStreamPropertyAvailablePhysicalFormats,
         mScope: kAudioObjectPropertyScopeGlobal,
-        mElement: kAudioObjectPropertyElementMaster
+        mElement: UInt32(0)
     )
 
     var size: UInt32 = 0
