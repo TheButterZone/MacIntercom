@@ -49,10 +49,41 @@ final class AudioOutput {
 
     func start() {
 
+if ioProcID != nil {
+
+    print(
+        "Restarting output:",
+        device.name
+    )
+
+    stop()
+}
+
         print("Starting output:")
         print("  Device: \(device.name)")
         print("  ID: \(device.id)")
-        printStreamFormat()
+printStreamFormat()
+
+var address = AudioObjectPropertyAddress(
+    mSelector: kAudioDevicePropertyBufferFrameSize,
+    mScope: kAudioObjectPropertyScopeOutput,
+    mElement: kAudioObjectPropertyElementMaster
+)
+
+var frames: UInt32 = 0
+var size = UInt32(MemoryLayout<UInt32>.size)
+
+if AudioObjectGetPropertyData(
+    device.id,
+    &address,
+    0,
+    nil,
+    &size,
+    &frames
+) == noErr {
+
+    print("Output buffer frames:", frames)
+}
 
         let status = AudioDeviceCreateIOProcID(
             device.id,
@@ -79,6 +110,18 @@ final class AudioOutput {
         let buffers = UnsafeMutableAudioBufferListPointer(
             outOutputData
         )
+
+if output.device.name == "Moo",
+   output.callbackCount % 200 == 0 {
+
+    print(
+        "Moo callback",
+        output.callbackCount,
+        "bytes:",
+        buffers.first?.mDataByteSize ?? 0
+    )
+}
+
         
 
 for buffer in buffers {
@@ -125,4 +168,29 @@ for buffer in buffers {
             print("Failed to start output device: \(startStatus)")
         }
     }
+
+func stop() {
+
+    guard let ioProcID = ioProcID else {
+        return
+    }
+
+    AudioDeviceStop(
+        device.id,
+        ioProcID
+    )
+
+    AudioDeviceDestroyIOProcID(
+        device.id,
+        ioProcID
+    )
+
+    self.ioProcID = nil
+
+    print(
+        "Stopped output:",
+        device.name
+    )
+}
+
 }

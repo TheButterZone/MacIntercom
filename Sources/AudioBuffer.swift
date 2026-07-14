@@ -4,6 +4,9 @@ final class AudioBuffer {
 
 private var totalWritten = 0
 private var totalRead = 0
+private var writtenThisSecond = 0
+private var readThisSecond = 0
+private var statsStarted = false
 
     private var samples: [Float] = []
     private let lock = NSLock()
@@ -12,48 +15,44 @@ private var totalRead = 0
 
     init(name: String = "buffer") {
         self.name = name
+if !statsStarted {
+
+    statsStarted = true
+
+    Timer.scheduledTimer(
+        withTimeInterval: 1.0,
+        repeats: true
+    ) { _ in
+
+        self.lock.lock()
+
+        print(
+            self.name,
+            "writes/sec:",
+            self.writtenThisSecond,
+            "reads/sec:",
+            self.readThisSecond,
+            "queued:",
+            self.samples.count
+        )
+
+        self.writtenThisSecond = 0
+        self.readThisSecond = 0
+
+        self.lock.unlock()
+    }
+}
     }
 
 func write(_ newSamples: [Float]) {
 
     lock.lock()
 
-    if !newSamples.isEmpty {
-
-var peak: Float = 0
-
-for sample in newSamples {
-    let m = abs(sample)
-    if m > peak {
-        peak = m
-    }
-}
-
-print(
-    name,
-    "WRITE peak:",
-    peak,
-    "count:",
-    newSamples.count
-)
-    }
-
     samples.append(contentsOf: newSamples)
 
 totalWritten += newSamples.count
 
-if totalWritten % 50000 < newSamples.count {
-
-    print(
-        name,
-        "TOTAL written:",
-        totalWritten,
-        "TOTAL read:",
-        totalRead,
-        "difference:",
-        totalWritten - totalRead
-    )
-}
+writtenThisSecond += newSamples.count
 
     lock.unlock()
 }
@@ -67,25 +66,7 @@ func read(count: Int) -> [Float] {
 
     let output = Array(samples.prefix(actual))
 
-    if !output.isEmpty {
-
-var peak: Float = 0
-
-for sample in output {
-    let m = abs(sample)
-    if m > peak {
-        peak = m
-    }
-}
-
-print(
-    name,
-    "READ peak:",
-    peak,
-    "count:",
-    output.count
-)
-    }
+readThisSecond += output.count
 
     samples.removeFirst(actual)
 

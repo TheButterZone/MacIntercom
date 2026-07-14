@@ -21,9 +21,14 @@ capture = AudioCapture(
         )
     }
 
-    func start() {
+func start() {
 
-        capture.start()
-        output.start()
-    }
+    print("Bluetooth engine: starting CAPTURE")
+    capture.start()
+
+    sleep(5)
+
+    print("Bluetooth engine: starting OUTPUT")
+    output.start()
+}
 }

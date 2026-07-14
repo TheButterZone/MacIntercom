@@ -43,6 +43,17 @@ let computerEngine =
         route: computerRoute
     )
 
+let bluetoothEngine =
+    BluetoothToComputerEngine(
+        route: bluetoothRoute
+    )
+
+print("STARTING ComputerToBluetoothEngine")
 computerEngine.start()
+
+sleep(5)
+
+print("STARTING BluetoothToComputerEngine")
+bluetoothEngine.start()
 
 RunLoop.main.run()

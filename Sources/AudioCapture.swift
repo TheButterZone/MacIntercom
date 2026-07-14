@@ -53,7 +53,28 @@ final class AudioCapture {
         print("  Device: \(device.name)")
         print("  ID: \(device.id)")
 
-        printStreamFormat()
+printStreamFormat()
+
+var address = AudioObjectPropertyAddress(
+    mSelector: kAudioDevicePropertyBufferFrameSize,
+    mScope: kAudioObjectPropertyScopeInput,
+    mElement: kAudioObjectPropertyElementMaster
+)
+
+var frames: UInt32 = 0
+var size = UInt32(MemoryLayout<UInt32>.size)
+
+if AudioObjectGetPropertyData(
+    device.id,
+    &address,
+    0,
+    nil,
+    &size,
+    &frames
+) == noErr {
+
+    print("Input buffer frames:", frames)
+}
 
         let status = AudioDeviceCreateIOProcID(
             device.id,
