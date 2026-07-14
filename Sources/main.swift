@@ -51,8 +51,6 @@ let bluetoothEngine =
 print("STARTING ComputerToBluetoothEngine")
 computerEngine.start()
 
-sleep(5)
-
 print("STARTING BluetoothToComputerEngine")
 bluetoothEngine.start()
 

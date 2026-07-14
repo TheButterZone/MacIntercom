@@ -146,6 +146,21 @@ for buffer in buffers {
         count: sampleCount
     )
 
+if output.device.name == "Built-in Output",
+   output.callbackCount % 500 == 0 {
+
+    print(
+        "Built-in Output callback:",
+        output.callbackCount,
+        "requested:",
+        sampleCount,
+        "received:",
+        incoming.count,
+        "queued:",
+        output.audioBuffer.sampleCount()
+    )
+}
+
     for i in 0..<sampleCount {
 
         if i < incoming.count {
