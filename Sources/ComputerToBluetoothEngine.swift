@@ -12,7 +12,9 @@ final class ComputerToBluetoothEngine {
 
 capture = AudioCapture(
     device: route.input,
-    audioBuffer: buffer
+    outputDevice: route.output,
+    audioBuffer: buffer,
+    shouldDownsample: true
 )
 
         output = AudioOutput(

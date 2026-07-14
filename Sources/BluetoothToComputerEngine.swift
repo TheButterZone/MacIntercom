@@ -12,7 +12,9 @@ final class BluetoothToComputerEngine {
 
 capture = AudioCapture(
     device: route.input,
-    audioBuffer: buffer
+    outputDevice: route.output,
+    audioBuffer: buffer,
+    shouldDownsample: false
 )
 
         output = AudioOutput(
@@ -26,7 +28,19 @@ func start() {
     print("Bluetooth engine: starting CAPTURE")
     capture.start()
 
-    sleep(5)
+    // Wait until we have enough audio buffered that the
+    // output callback won't immediately underrun.
+
+    while buffer.sampleCount() < 4096 {
+
+        usleep(1000) // 1 ms
+    }
+
+    print(
+        "Bluetooth buffer primed:",
+        buffer.sampleCount(),
+        "samples"
+    )
 
     print("Bluetooth engine: starting OUTPUT")
     output.start()

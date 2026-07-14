@@ -14,10 +14,12 @@ final class AudioEngine {
         computerRoute: IntercomRoute
     ) {
 
-        computerCapture = AudioCapture(
-    	    device: computerRoute.input,
-	    audioBuffer: bluetoothBuffer
-	)
+computerCapture = AudioCapture(
+    device: computerRoute.input,
+    outputDevice: computerRoute.output,
+    audioBuffer: bluetoothBuffer,
+    shouldDownsample: true
+)
 
         bluetoothOutput = AudioOutput(
             device: computerRoute.output,
