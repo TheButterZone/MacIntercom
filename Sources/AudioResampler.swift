@@ -2,70 +2,58 @@ import Foundation
 
 final class AudioResampler {
 
-private var previousLastSample: Float?
+    private var previousLastSample: Float?
 
     private let ratio: Double
 
     // Remember where we are in the source stream between callbacks.
     private var sourcePosition: Double = 0.0
 
-init(
-    inputSampleRate: Double,
-    outputSampleRate: Double
-) {
+    init(
+        inputSampleRate: Double,
+        outputSampleRate: Double
+    ) {
 
-    print(
-        "Resampler init:",
-        inputSampleRate,
-        "->",
-        outputSampleRate
-    )
-
-    ratio = outputSampleRate / inputSampleRate
-
-    print(
-        "Ratio:",
-        ratio
-    )
-}
-
-func process(
-    _ samples: [Float]
-) -> [Float] {
-
-    guard samples.count >= 2 else {
-        return []
+        ratio = outputSampleRate / inputSampleRate
     }
 
-    var input = samples
+    func process(
+        _ samples: [Float]
+    ) -> [Float] {
 
-    if let last = previousLastSample {
-        input.insert(last, at: 0)
+        guard samples.count >= 2 else {
+            return []
+        }
+
+        var input = samples
+
+        if let last = previousLastSample {
+            input.insert(last, at: 0)
+        }
+
+        previousLastSample = input.last
+
+        var output: [Float] = []
+
+        while sourcePosition < Double(input.count - 1) {
+
+            let index = Int(sourcePosition)
+
+            let fraction =
+                Float(sourcePosition - Double(index))
+
+            let a = input[index]
+            let b = input[index + 1]
+
+            output.append(
+                a + (b - a) * fraction
+            )
+
+            sourcePosition += 1.0 / ratio
+        }
+
+        sourcePosition -= Double(input.count - 1)
+
+        return output
     }
-
-    previousLastSample = input.last
-
-    var output: [Float] = []
-
-    while sourcePosition < Double(input.count - 1) {
-
-        let index = Int(sourcePosition)
-
-        let fraction =
-            Float(sourcePosition - Double(index))
-
-        let a = input[index]
-        let b = input[index + 1]
-
-        output.append(
-            a + (b - a) * fraction
-        )
-
-        sourcePosition += 1.0 / ratio
-    }
-
-    sourcePosition -= Double(input.count - 1)
-
-    return output
-}
 }

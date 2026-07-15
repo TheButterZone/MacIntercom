@@ -21,8 +21,6 @@ private let shouldDownsample: Bool
 private var downsampleAccumulator: Float = 0
 private var downsampleCount = 0
 
-private var upsamplePrintCount = 0
-
 private let upsampler = AudioResampler(
     inputSampleRate: 8000,
     outputSampleRate: 48000
@@ -424,20 +422,6 @@ private func upsampleTo48kStereo(
         stereo.append(sample) // Left
         stereo.append(sample) // Right
     }
-
-upsamplePrintCount += 1
-
-if upsamplePrintCount % 100 == 0 {
-
-    print(
-        "Upsampler:",
-        samples.count,
-        "->",
-        mono.count,
-        "->",
-        stereo.count
-    )
-}
 
 return stereo
 }
