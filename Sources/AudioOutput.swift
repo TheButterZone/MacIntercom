@@ -183,15 +183,42 @@ if output.device.name == "Built-in Output",
             return
         }
 
-        let startStatus = AudioDeviceStart(
-            device.id,
-            ioProcID!
-        )
+let shouldStart: Bool
 
-        if startStatus != noErr {
-            print("Failed to start output device: \(startStatus)")
-        }
-    }
+if device.transport == "Bluetooth" {
+
+    shouldStart = DebugFlags.enableBluetoothOutput
+
+} else {
+
+    shouldStart = DebugFlags.enableComputerOutput
+
+}
+
+if shouldStart {
+
+let startStatus = AudioDeviceStart(
+    device.id,
+    ioProcID!
+)
+
+if startStatus != noErr {
+
+    print(
+        "Failed to start output device: \(startStatus)"
+    )
+
+}
+
+} else {
+
+    Logger.info(
+        "DEBUG: Output disabled for \(device.name)"
+    )
+
+}
+
+}
 
 func stop() {
 

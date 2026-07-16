@@ -16,11 +16,11 @@ final class AudioCapture {
     private var highestPeak: Float = 0
     private var highestProcessedPeak: Float = 0
 
+    var onFirstCallback: (() -> Void)?
+    private var hasReportedFirstCallback = false
+
 private let shouldDownsample: Bool
-
-private var downsampleAccumulator: Float = 0
-private var downsampleCount = 0
-
+private let outputDevice: AudioDevice
 private let upsampler = AudioResampler(
     inputSampleRate: 8000,
     outputSampleRate: 48000
@@ -32,9 +32,12 @@ init(
     audioBuffer: AudioBuffer,
     shouldDownsample: Bool
 ) {
+
     self.device = device
+    self.outputDevice = outputDevice
     self.audioBuffer = audioBuffer
     self.shouldDownsample = shouldDownsample
+
 }
 
     private func printStreamFormat() {
@@ -140,6 +143,17 @@ if capture.callbackCount == 1 {
         let samples = data.assumingMemoryBound(
             to: Float.self
         )
+
+if !capture.hasReportedFirstCallback {
+
+    capture.hasReportedFirstCallback = true
+
+    DispatchQueue.main.async {
+
+        capture.onFirstCallback?()
+
+    }
+}
 
         let sampleCount = Int(
             bufferList[0].mDataByteSize
@@ -271,20 +285,49 @@ if capture.callbackCount % 100 == 0 {
             &ioProcID
         )
 
-        if status != noErr {
-            print("Failed to create IOProc: \(status)")
-            return
-        }
+if status != noErr {
+    print("Failed to create IOProc: \(status)")
+    return
+}
 
-        let startStatus = AudioDeviceStart(
-            device.id,
-            ioProcID!
+let shouldStart: Bool
+
+if device.transport == "Bluetooth" {
+
+    shouldStart =
+        DebugFlags.enableBluetoothCapture
+
+} else {
+
+    shouldStart =
+        DebugFlags.enableComputerCapture
+
+}
+
+if shouldStart {
+
+    let startStatus = AudioDeviceStart(
+        device.id,
+        ioProcID!
+    )
+
+    if startStatus != noErr {
+
+        print(
+            "Failed to start device: \(startStatus)"
         )
 
-        if startStatus != noErr {
-            print("Failed to start device: \(startStatus)")
-        }
     }
+
+} else {
+
+    Logger.info(
+        "DEBUG: Capture disabled for \(device.name)"
+    )
+
+}
+
+}
 
 private func applyAutomaticGain(
     _ samples: [Float]

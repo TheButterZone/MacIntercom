@@ -3,14 +3,14 @@ import Foundation
 guard let bluetoothRoute =
     AudioInspector.bluetoothToComputerRoute()
 else {
-    print("No Bluetooth → Computer route")
+    Logger.error("No Bluetooth → Computer route")
     exit(1)
 }
 
 guard let computerRoute =
     AudioInspector.computerToBluetoothRoute()
 else {
-    print("No Computer → Bluetooth route")
+    Logger.error("No Computer → Bluetooth route")
     exit(1)
 }
 
@@ -38,45 +38,59 @@ AudioInspector.printBufferFrameSize(
     computerRoute.output
 )
 
-let computerEngine =
-    ComputerToBluetoothEngine(
-        route: computerRoute
-    )
+let computerToBluetooth = IntercomEngine(
+    name: "Computer→BT",
+    route: computerRoute,
+    shouldDownsample: true,
+    primeBuffer: false
+)
 
-let bluetoothEngine =
-    BluetoothToComputerEngine(
-        route: bluetoothRoute
-    )
+let bluetoothToComputer = IntercomEngine(
+    name: "BT→Computer",
+    route: bluetoothRoute,
+    shouldDownsample: false,
+    primeBuffer: true
+)
+
+computerToBluetooth.capture.onFirstCallback = {
+
+    Logger.info("Computer capture is alive; starting Bluetooth engine")
+
+    bluetoothToComputer.start()
+
+}
+
+bluetoothToComputer.capture.onFirstCallback = {
+
+    Logger.info("Bluetooth capture callback received")
+
+}
+
+computerToBluetooth.start()
 
 //MediaRemoteObserver.shared.start()
 
-let conversationController =
-    ConversationController()
+//let conversationController =
+//    ConversationController()
 
-print("STARTING ComputerToBluetoothEngine")
-computerEngine.start()
-
-print("STARTING BluetoothToComputerEngine")
-bluetoothEngine.start()
-
-DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-
-    Logger.info("TEST: Begin conversation")
-
-    conversationController.begin(
-        trigger: .app
-    )
-
-}
-
-DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-
-    Logger.info("TEST: End conversation")
-
-    conversationController.end(
-        trigger: .app
-    )
-
-}
+//DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+//
+//    Logger.info("TEST: Begin conversation")
+//
+//    conversationController.begin(
+//        trigger: .app
+//    )
+//
+//}
+//
+//DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+//
+//    Logger.info("TEST: End conversation")
+//
+//    conversationController.end(
+//        trigger: .app
+//    )
+//
+//}
 
 RunLoop.main.run()
