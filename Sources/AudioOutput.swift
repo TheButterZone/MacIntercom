@@ -8,9 +8,8 @@ final class AudioOutput {
 
     private var ioProcID: AudioDeviceIOProcID?
     private var callbackCount = 0
-    private var phase: Float = 0
-    private let toneFrequency: Float = 440
-    private let toneAmplitude: Float = 0.01
+
+    let testTone = TestTone()
 
     init(device: AudioDevice, audioBuffer: AudioBuffer) {
         self.device = device
@@ -39,11 +38,11 @@ final class AudioOutput {
 
     if status == noErr {
 
-        print("Output Sample Rate: \(format.mSampleRate)")
-        print("Output Format ID: \(format.mFormatID)")
-        print("Output Bits per channel: \(format.mBitsPerChannel)")
-        print("Output Channels: \(format.mChannelsPerFrame)")
-        print("Output Bytes per frame: \(format.mBytesPerFrame)")
+	Logger.audio("Output Sample Rate: \(format.mSampleRate)")
+	Logger.audio("Output Format ID: \(format.mFormatID)")
+	Logger.audio("Output Bits per channel: \(format.mBitsPerChannel)")
+	Logger.audio("Output Channels: \(format.mChannelsPerFrame)")
+	Logger.audio("Output Bytes per frame: \(format.mBytesPerFrame)")
     }
 }
 
@@ -51,17 +50,14 @@ final class AudioOutput {
 
 if ioProcID != nil {
 
-    print(
-        "Restarting output:",
-        device.name
-    )
+    Logger.audio("Restarting output: \(device.name)")
 
     stop()
 }
 
-        print("Starting output:")
-        print("  Device: \(device.name)")
-        print("  ID: \(device.id)")
+        Logger.audio("Starting output:")
+        Logger.audio("  Device: \(device.name)")
+        Logger.audio("  ID: \(device.id)")
 printStreamFormat()
 
 var address = AudioObjectPropertyAddress(
@@ -82,7 +78,7 @@ if AudioObjectGetPropertyData(
     &frames
 ) == noErr {
 
-    print("Output buffer frames:", frames)
+    Logger.audio("Output buffer frames: \(frames)")
 }
 
         let status = AudioDeviceCreateIOProcID(
@@ -107,30 +103,23 @@ if AudioObjectGetPropertyData(
 
         output.callbackCount += 1
 
+if output.callbackCount == 1 {
+
+    Logger.info("FIRST OUTPUT CALLBACK: \(output.device.name)")
+
+}
+
 if output.callbackCount % 100 == 0 {
 
-    print(
-        output.device.name,
-        "output callbacks:",
-        output.callbackCount
+    Logger.callback(
+        "\(output.device.name) output callbacks: \(output.callbackCount)"
     )
+
 }
 
         let buffers = UnsafeMutableAudioBufferListPointer(
             outOutputData
         )
-
-if output.device.name == "Moo",
-   output.callbackCount % 200 == 0 {
-
-    print(
-        "Moo callback",
-        output.callbackCount,
-        "bytes:",
-        buffers.first?.mDataByteSize ?? 0
-    )
-}
-
         
 
 for buffer in buffers {
@@ -142,23 +131,73 @@ for buffer in buffers {
     let sampleCount = Int(buffer.mDataByteSize) /
         MemoryLayout<Float>.size
 
+if output.callbackCount == 1 {
+
+    Logger.audio("sampleCount = \(sampleCount)")
+    Logger.audio("buffer channels = \(buffer.mNumberChannels)")
+}
+
+if output.callbackCount == 1 {
+
+    Logger.audio(
+        "OUTPUT DEVICE: \(output.device.name) transport=\(output.device.transport)"
+    )
+
+    Logger.audio(
+        "\(output.device.name): buffers=\(buffers.count) channels=\(buffer.mNumberChannels) bytes=\(buffer.mDataByteSize)"
+    )
+
+}
+
+if DebugFlags.generateTestTone {
+
+    if output.device.transport == "Bluetooth" {
+
+Logger.audio(
+    "TestTone frequency=\(output.testTone.frequency) amplitude=\(output.testTone.amplitude)"
+)
+
+Logger.audio(
+    "Using sample rate: \(output.device.sampleRate)"
+)
+
+output.testTone.fill(
+    samples,
+    count: sampleCount,
+    sampleRate: Float(output.device.sampleRate)
+)
+
+print("AFTER FILL")
+
+for i in 0..<16 {
+    print(samples[i])
+}
+
+    } else {
+
+        for i in 0..<sampleCount {
+            samples[i] = 0
+        }
+
+    }
+
+    continue
+}
+
+Logger.info(
+    "READ BUFFER: \(Unmanaged.passUnretained(output.audioBuffer).toOpaque())"
+)
+
     let incoming = output.audioBuffer.read(
         count: sampleCount
     )
 
-if output.device.name == "Built-in Output",
-   output.callbackCount % 500 == 0 {
+if output.callbackCount % 500 == 0 {
 
-    print(
-        "Built-in Output callback:",
-        output.callbackCount,
-        "requested:",
-        sampleCount,
-        "received:",
-        incoming.count,
-        "queued:",
-        output.audioBuffer.sampleCount()
+    Logger.queue(
+        "\(output.device.name) callback: \(output.callbackCount) requested: \(sampleCount) received: \(incoming.count) queued: \(output.audioBuffer.sampleCount())"
     )
+
 }
 
     for i in 0..<sampleCount {
@@ -204,9 +243,18 @@ let startStatus = AudioDeviceStart(
 
 if startStatus != noErr {
 
-    print(
-        "Failed to start output device: \(startStatus)"
+    Logger.error(
+	"Failed to start output device: \(startStatus)"
     )
+
+print("START STATUS =", startStatus)
+
+if startStatus == noErr {
+
+    print("CALLING printCurrentOutputFormat()")
+
+    device.printCurrentOutputFormat()
+}
 
 }
 
@@ -238,9 +286,8 @@ func stop() {
 
     self.ioProcID = nil
 
-    print(
-        "Stopped output:",
-        device.name
+    Logger.audio(
+	"Stopped output: \(device.name)"
     )
 }
 

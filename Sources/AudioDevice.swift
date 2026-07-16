@@ -9,10 +9,45 @@ struct AudioDevice {
     let transport: String
     let inputChannels: Int
     let outputChannels: Int
+    let sampleRate: Double
 
 }
 
 extension AudioDevice {
+
+func printCurrentOutputFormat() {
+
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyStreamFormat,
+        mScope: kAudioDevicePropertyScopeOutput,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var format = AudioStreamBasicDescription()
+    var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
+
+    let status = AudioObjectGetPropertyData(
+        id,
+        &address,
+        0,
+        nil,
+        &size,
+        &format
+    )
+
+    guard status == noErr else {
+        print("Couldn't read current output format: \(status)")
+        return
+    }
+
+    print("CURRENT OUTPUT FORMAT")
+    print("  Sample rate: \(format.mSampleRate)")
+    print("  Channels: \(format.mChannelsPerFrame)")
+    print("  Bits: \(format.mBitsPerChannel)")
+    print("  Bytes/frame: \(format.mBytesPerFrame)")
+    print("  Format ID: \(format.mFormatID)")
+    print("  Flags: \(format.mFormatFlags)")
+}
 
     func printInputStreams() {
 

@@ -74,9 +74,9 @@ init(
 
     func start() {
 
-        print("Starting capture:")
-        print("  Device: \(device.name)")
-        print("  ID: \(device.id)")
+        Logger.audio("Starting capture:")
+        Logger.audio("  Device: \(device.name)")
+        Logger.audio("  ID: \(device.id)")
 
 printStreamFormat()
 
@@ -98,7 +98,10 @@ if AudioObjectGetPropertyData(
     &frames
 ) == noErr {
 
-    print("Input buffer frames:", frames)
+    Logger.audio(
+    "Input buffer frames: \(frames)"
+)
+
 }
 
         let status = AudioDeviceCreateIOProcID(
@@ -183,7 +186,7 @@ if capture.callbackCount == 1 {
         }
 
         if capture.callbackCount % 500 == 0 {
-            print("Highest input peak: \(capture.highestPeak)")
+            Logger.levels("Highest input peak: \(capture.highestPeak)")
             capture.highestPeak = 0
         }        
 
@@ -213,18 +216,19 @@ for sample in leveled {
 }
 
 if capture.callbackCount % 500 == 0 {
-    print("Highest processed peak: \(capture.highestProcessedPeak)")
+    Logger.levels("Highest processed peak: \(capture.highestProcessedPeak)")
     capture.highestProcessedPeak = 0
 }
 
 if capture.callbackCount % 500 == 0 {
-    print(
-        "Gain:",
-        capture.currentGain,
-        "Peak:",
-        capture.smoothedPeak
+    Logger.levels(
+	"Gain: \(capture.currentGain) Peak: \(capture.smoothedPeak)"
     )
 }
+
+Logger.info(
+    "WRITE BUFFER: \(Unmanaged.passUnretained(capture.audioBuffer).toOpaque())"
+)
 
     capture.audioBuffer.write(
         leveled
@@ -268,10 +272,9 @@ if capture.callbackCount % 500 == 0 {
 
 if capture.callbackCount % 100 == 0 {
 
-    print(
-        "BT queue:",
-        capture.audioBuffer.sampleCount()
-    )
+    Logger.queue(
+	"BT queue: \(capture.audioBuffer.sampleCount())"
+)
 }
 
 } 

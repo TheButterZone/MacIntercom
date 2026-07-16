@@ -14,13 +14,13 @@ else {
     exit(1)
 }
 
-print("Bluetooth route:")
-print("  Input : \(bluetoothRoute.input.name)")
-print("  Output: \(bluetoothRoute.output.name)")
+Logger.audio("Bluetooth route:")
+Logger.audio("  Input : \(bluetoothRoute.input.name)")
+Logger.audio("  Output: \(bluetoothRoute.output.name)")
 
-print("Computer route:")
-print("  Input : \(computerRoute.input.name)")
-print("  Output: \(computerRoute.output.name)")
+Logger.audio("Computer route:")
+Logger.audio("  Input : \(computerRoute.input.name)")
+Logger.audio("  Output: \(computerRoute.output.name)")
 
 AudioInspector.printBufferFrameSize(
     bluetoothRoute.input

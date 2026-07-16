@@ -2,14 +2,29 @@ import Foundation
 
 enum DebugFlags {
 
-    // MARK: - Computer side
+    // MARK: - Device startup
 
-    static var enableComputerCapture = true
-    static var enableComputerOutput = true
+    static let enableComputerCapture  = true
+    static let enableComputerOutput   = true
+    static let enableBluetoothCapture = true
+    static let enableBluetoothOutput  = true
 
-    // MARK: - Bluetooth side
+    // MARK: - Audio processing
 
-    static var enableBluetoothCapture = true
-    static var enableBluetoothOutput = true
+    static let enableAGC          = true
+    static let enableDownsampling = true
+    static let enableUpsampling   = true
+
+    // MARK: - Diagnostics
+
+    static let logDeviceStartup = true
+    static let logBufferDepth   = false
+    static let logLevels        = false
+    static let logCallbacks     = false
+    static let logMediaRemote   = true
+
+    // MARK: - Test tools
+
+    static let generateTestTone = false
 
 }

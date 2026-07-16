@@ -149,6 +149,35 @@ static func printBufferFrameSize(
     return transport
 }
 
+static func nominalSampleRate(
+    _ deviceID: AudioDeviceID
+) -> Double {
+
+    var address = AudioObjectPropertyAddress(
+        mSelector: kAudioDevicePropertyNominalSampleRate,
+        mScope: kAudioObjectPropertyScopeGlobal,
+        mElement: kAudioObjectPropertyElementMaster
+    )
+
+    var sampleRate: Double = 0
+    var size = UInt32(MemoryLayout<Double>.size)
+
+    let status = AudioObjectGetPropertyData(
+        deviceID,
+        &address,
+        0,
+        nil,
+        &size,
+        &sampleRate
+    )
+
+    if status != noErr {
+        return 0
+    }
+
+    return sampleRate
+}
+
     static func channelCount(
     _ deviceID: AudioDeviceID,
     scope: AudioObjectPropertyScope
@@ -207,20 +236,21 @@ static func printBufferFrameSize(
 
     static func makeDevice(_ id: AudioDeviceID) -> AudioDevice {
 
-    return AudioDevice(
-        id: id,
-        uid: deviceUID(id),
-        name: deviceName(id),
-        transport: transportName(transportType(id)),
-        inputChannels: channelCount(
-            id,
-            scope: kAudioDevicePropertyScopeInput
-        ),
-        outputChannels: channelCount(
-            id,
-            scope: kAudioDevicePropertyScopeOutput
-        )
-    )
+return AudioDevice(
+    id: id,
+    uid: deviceUID(id),
+    name: deviceName(id),
+    transport: transportName(transportType(id)),
+    inputChannels: channelCount(
+        id,
+        scope: kAudioDevicePropertyScopeInput
+    ),
+    outputChannels: channelCount(
+        id,
+        scope: kAudioDevicePropertyScopeOutput
+    ),
+    sampleRate: nominalSampleRate(id)
+)
 
 }
 
