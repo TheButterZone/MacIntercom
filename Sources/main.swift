@@ -48,10 +48,35 @@ let bluetoothEngine =
         route: bluetoothRoute
     )
 
+//MediaRemoteObserver.shared.start()
+
+let conversationController =
+    ConversationController()
+
 print("STARTING ComputerToBluetoothEngine")
 computerEngine.start()
 
 print("STARTING BluetoothToComputerEngine")
 bluetoothEngine.start()
+
+DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
+
+    Logger.info("TEST: Begin conversation")
+
+    conversationController.begin(
+        trigger: .app
+    )
+
+}
+
+DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
+
+    Logger.info("TEST: End conversation")
+
+    conversationController.end(
+        trigger: .app
+    )
+
+}
 
 RunLoop.main.run()
