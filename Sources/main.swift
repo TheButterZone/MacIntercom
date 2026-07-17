@@ -1,5 +1,8 @@
 import Foundation
 
+let mediaKeyMonitor = MediaKeyMonitor()
+let bluetoothMonitor = BluetoothMonitor()
+
 guard let bluetoothRoute =
     AudioInspector.bluetoothToComputerRoute()
 else {
@@ -67,6 +70,9 @@ bluetoothToComputer.capture.onFirstCallback = {
 }
 
 computerToBluetooth.start()
+
+mediaKeyMonitor.start()
+bluetoothMonitor.start()
 
 //MediaRemoteObserver.shared.start()
 
