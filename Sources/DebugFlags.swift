@@ -22,6 +22,7 @@ enum DebugFlags {
     static let logLevels        = false
     static let logCallbacks     = false
     static let logMediaRemote   = true
+    static let showPerformanceStats = false
 
     // MARK: - Test tools
 

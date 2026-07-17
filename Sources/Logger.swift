@@ -36,6 +36,10 @@ enum Logger {
 
     // MARK: - Debug categories
 
+    static func performance(_ message: String) {
+	debug("📊 \(message)")
+    }
+
     static func audio(_ message: String) {
 
         guard DebugFlags.logDeviceStartup else {

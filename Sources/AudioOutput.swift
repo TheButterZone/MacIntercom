@@ -103,12 +103,6 @@ if AudioObjectGetPropertyData(
 
         output.callbackCount += 1
 
-if output.callbackCount == 1 {
-
-    Logger.info("FIRST OUTPUT CALLBACK: \(output.device.name)")
-
-}
-
 if output.callbackCount % 100 == 0 {
 
     Logger.callback(
@@ -131,47 +125,15 @@ for buffer in buffers {
     let sampleCount = Int(buffer.mDataByteSize) /
         MemoryLayout<Float>.size
 
-if output.callbackCount == 1 {
-
-    Logger.audio("sampleCount = \(sampleCount)")
-    Logger.audio("buffer channels = \(buffer.mNumberChannels)")
-}
-
-if output.callbackCount == 1 {
-
-    Logger.audio(
-        "OUTPUT DEVICE: \(output.device.name) transport=\(output.device.transport)"
-    )
-
-    Logger.audio(
-        "\(output.device.name): buffers=\(buffers.count) channels=\(buffer.mNumberChannels) bytes=\(buffer.mDataByteSize)"
-    )
-
-}
-
 if DebugFlags.generateTestTone {
 
     if output.device.transport == "Bluetooth" {
-
-Logger.audio(
-    "TestTone frequency=\(output.testTone.frequency) amplitude=\(output.testTone.amplitude)"
-)
-
-Logger.audio(
-    "Using sample rate: \(output.device.sampleRate)"
-)
 
 output.testTone.fill(
     samples,
     count: sampleCount,
     sampleRate: Float(output.device.sampleRate)
 )
-
-print("AFTER FILL")
-
-for i in 0..<16 {
-    print(samples[i])
-}
 
     } else {
 
@@ -183,10 +145,6 @@ for i in 0..<16 {
 
     continue
 }
-
-Logger.info(
-    "READ BUFFER: \(Unmanaged.passUnretained(output.audioBuffer).toOpaque())"
-)
 
     let incoming = output.audioBuffer.read(
         count: sampleCount
@@ -244,17 +202,8 @@ let startStatus = AudioDeviceStart(
 if startStatus != noErr {
 
     Logger.error(
-	"Failed to start output device: \(startStatus)"
+        "Failed to start output device: \(startStatus)"
     )
-
-print("START STATUS =", startStatus)
-
-if startStatus == noErr {
-
-    print("CALLING printCurrentOutputFormat()")
-
-    device.printCurrentOutputFormat()
-}
 
 }
 

@@ -226,10 +226,6 @@ if capture.callbackCount % 500 == 0 {
     )
 }
 
-Logger.info(
-    "WRITE BUFFER: \(Unmanaged.passUnretained(capture.audioBuffer).toOpaque())"
-)
-
     capture.audioBuffer.write(
         leveled
     )

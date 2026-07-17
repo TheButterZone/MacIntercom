@@ -2,11 +2,11 @@ import Foundation
 
 final class AudioBuffer {
 
-private var totalWritten = 0
-private var totalRead = 0
-private var writtenThisSecond = 0
-private var readThisSecond = 0
-private var statsStarted = false
+    private var totalWritten = 0
+    private var totalRead = 0
+    private var writtenThisSecond = 0
+    private var readThisSecond = 0
+    private var statsStarted = false
 
     private var samples: [Float] = []
     private let lock = NSLock()
@@ -14,71 +14,71 @@ private var statsStarted = false
     let name: String
 
     init(name: String = "buffer") {
+
         self.name = name
-if !statsStarted {
 
-    statsStarted = true
+        if !statsStarted {
 
-    Timer.scheduledTimer(
-        withTimeInterval: 1.0,
-        repeats: true
-    ) { _ in
+            statsStarted = true
 
-        self.lock.lock()
+            Timer.scheduledTimer(
+                withTimeInterval: 1.0,
+                repeats: true
+            ) { _ in
 
-        print(
-            self.name,
-            "writes/sec:",
-            self.writtenThisSecond,
-            "reads/sec:",
-            self.readThisSecond,
-            "queued:",
-            self.samples.count
-        )
+                self.lock.lock()
 
-        self.writtenThisSecond = 0
-        self.readThisSecond = 0
+                if DebugFlags.showPerformanceStats {
 
-        self.lock.unlock()
+                    Logger.performance(
+                        "\(self.name) writes/sec: \(self.writtenThisSecond) reads/sec: \(self.readThisSecond) queued: \(self.samples.count)"
+                    )
+
+                }
+
+                self.writtenThisSecond = 0
+                self.readThisSecond = 0
+
+                self.lock.unlock()
+            }
+        }
     }
-}
+
+    func write(_ newSamples: [Float]) {
+
+        lock.lock()
+
+        samples.append(contentsOf: newSamples)
+
+        let maxQueued = 12288
+
+        if samples.count > maxQueued {
+            samples.removeFirst(samples.count - maxQueued)
+        }
+
+        totalWritten += newSamples.count
+        writtenThisSecond += newSamples.count
+
+        lock.unlock()
     }
 
-func write(_ newSamples: [Float]) {
+    func read(count: Int) -> [Float] {
 
-    lock.lock()
+        lock.lock()
+        defer { lock.unlock() }
 
-    samples.append(contentsOf: newSamples)
+        let actual = min(count, samples.count)
 
-let maxQueued = 12288
+        let output = Array(samples.prefix(actual))
 
-if samples.count > maxQueued {
-    samples.removeFirst(samples.count - maxQueued)
-}
+        readThisSecond += output.count
 
-totalWritten += newSamples.count
+        samples.removeFirst(actual)
 
-writtenThisSecond += newSamples.count
+        totalRead += output.count
 
-    lock.unlock()
-}
-
-func read(count: Int) -> [Float] {
-
-    lock.lock()
-    defer { lock.unlock() }
-
-    let actual = min(count, samples.count)
-
-    let output = Array(samples.prefix(actual))
-
-readThisSecond += output.count
-
-    samples.removeFirst(actual)
-
-totalRead += output.count
-    return output
-}
+        return output
+    }
 
     func sampleCount() -> Int {
 
