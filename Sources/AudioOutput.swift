@@ -18,11 +18,10 @@ final class AudioOutput {
     
     private func printStreamFormat() {
 
-    var address = AudioObjectPropertyAddress(
-        mSelector: kAudioDevicePropertyStreamFormat,
-        mScope: kAudioDevicePropertyScopeOutput,
-        mElement: kAudioObjectPropertyElementMaster
-    )
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyStreamFormat,
+    scope: kAudioDevicePropertyScopeOutput
+)
 
     var format = AudioStreamBasicDescription()
     var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
@@ -60,10 +59,9 @@ if ioProcID != nil {
         Logger.audio("  ID: \(device.id)")
 printStreamFormat()
 
-var address = AudioObjectPropertyAddress(
-    mSelector: kAudioDevicePropertyBufferFrameSize,
-    mScope: kAudioObjectPropertyScopeOutput,
-    mElement: kAudioObjectPropertyElementMaster
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyBufferFrameSize,
+    scope: kAudioObjectPropertyScopeOutput
 )
 
 var frames: UInt32 = 0

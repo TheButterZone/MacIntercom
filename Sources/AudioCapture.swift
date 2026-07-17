@@ -42,11 +42,10 @@ init(
 
     private func printStreamFormat() {
 
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioDevicePropertyStreamFormat,
-            mScope: kAudioDevicePropertyScopeInput,
-            mElement: kAudioObjectPropertyElementMaster
-        )
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyStreamFormat,
+    scope: kAudioDevicePropertyScopeInput
+)
 
         var format = AudioStreamBasicDescription()
         var size = UInt32(MemoryLayout<AudioStreamBasicDescription>.size)
@@ -80,10 +79,9 @@ init(
 
 printStreamFormat()
 
-var address = AudioObjectPropertyAddress(
-    mSelector: kAudioDevicePropertyBufferFrameSize,
-    mScope: kAudioObjectPropertyScopeInput,
-    mElement: kAudioObjectPropertyElementMaster
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyBufferFrameSize,
+    scope: kAudioObjectPropertyScopeInput
 )
 
 var frames: UInt32 = 0

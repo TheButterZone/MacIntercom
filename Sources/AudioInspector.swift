@@ -34,11 +34,10 @@ static func printBufferFrameSize(
     _ device: AudioDevice
 ) {
 
-    var address = AudioObjectPropertyAddress(
-        mSelector: kAudioDevicePropertyBufferFrameSize,
-        mScope: kAudioObjectPropertyScopeGlobal,
-        mElement: kAudioObjectPropertyElementMaster
-    )
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyBufferFrameSize,
+    scope: kAudioObjectPropertyScopeGlobal
+)
 
     var frames: UInt32 = 0
     var size = UInt32(MemoryLayout<UInt32>.size)
@@ -70,11 +69,10 @@ static func printBufferFrameSize(
 
     static func deviceName(_ deviceID: AudioDeviceID) -> String {
 
-        var address = AudioObjectPropertyAddress(
-            mSelector: kAudioObjectPropertyName,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMaster
-        )
+var address = CoreAudioHelpers.address(
+    selector: kAudioObjectPropertyName,
+    scope: kAudioObjectPropertyScopeGlobal
+)
 
         var name: CFString = "" as CFString
         var size = UInt32(MemoryLayout<CFString>.size)
@@ -97,11 +95,10 @@ static func printBufferFrameSize(
 
     static func deviceUID(_ deviceID: AudioDeviceID) -> String {
 
-    var address = AudioObjectPropertyAddress(
-        mSelector: kAudioDevicePropertyDeviceUID,
-        mScope: kAudioObjectPropertyScopeGlobal,
-        mElement: kAudioObjectPropertyElementMaster
-    )
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyDeviceUID,
+    scope: kAudioObjectPropertyScopeGlobal
+)
 
     var uid: CFString = "" as CFString
     var size = UInt32(MemoryLayout<CFString>.size)
@@ -124,11 +121,10 @@ static func printBufferFrameSize(
 
     static func transportType(_ deviceID: AudioDeviceID) -> UInt32 {
 
-    var address = AudioObjectPropertyAddress(
-        mSelector: kAudioDevicePropertyTransportType,
-        mScope: kAudioObjectPropertyScopeGlobal,
-        mElement: kAudioObjectPropertyElementMaster
-    )
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyTransportType,
+    scope: kAudioObjectPropertyScopeGlobal
+)
 
     var transport: UInt32 = 0
     var size = UInt32(MemoryLayout<UInt32>.size)
@@ -153,11 +149,10 @@ static func nominalSampleRate(
     _ deviceID: AudioDeviceID
 ) -> Double {
 
-    var address = AudioObjectPropertyAddress(
-        mSelector: kAudioDevicePropertyNominalSampleRate,
-        mScope: kAudioObjectPropertyScopeGlobal,
-        mElement: kAudioObjectPropertyElementMaster
-    )
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyNominalSampleRate,
+    scope: kAudioObjectPropertyScopeGlobal
+)
 
     var sampleRate: Double = 0
     var size = UInt32(MemoryLayout<Double>.size)
@@ -183,11 +178,10 @@ static func nominalSampleRate(
     scope: AudioObjectPropertyScope
 ) -> Int {
 
-    var address = AudioObjectPropertyAddress(
-        mSelector: kAudioDevicePropertyStreamConfiguration,
-        mScope: scope,
-        mElement: kAudioObjectPropertyElementMaster
-    )
+var address = CoreAudioHelpers.address(
+    selector: kAudioDevicePropertyStreamConfiguration,
+    scope: scope
+)
 
     var dataSize: UInt32 = 0
 
@@ -256,11 +250,10 @@ return AudioDevice(
 
     static func defaultOutputDevice() -> AudioDevice? {
 
-    var address = AudioObjectPropertyAddress(
-        mSelector: kAudioHardwarePropertyDefaultOutputDevice,
-        mScope: kAudioObjectPropertyScopeGlobal,
-        mElement: kAudioObjectPropertyElementMaster
-    )
+var address = CoreAudioHelpers.address(
+    selector: kAudioHardwarePropertyDefaultOutputDevice,
+    scope: kAudioObjectPropertyScopeGlobal
+)
 
     var deviceID = AudioDeviceID()
     var size = UInt32(MemoryLayout<AudioDeviceID>.size)
@@ -402,11 +395,10 @@ static func groupBluetoothEndpoints(
 
     static func enumerateDevices() -> [AudioDevice] {
 
-    var propertyAddress = AudioObjectPropertyAddress(
-        mSelector: kAudioHardwarePropertyDevices,
-        mScope: kAudioObjectPropertyScopeGlobal,
-        mElement: kAudioObjectPropertyElementMaster
-    )
+var propertyAddress = CoreAudioHelpers.address(
+    selector: kAudioHardwarePropertyDevices,
+    scope: kAudioObjectPropertyScopeGlobal
+)
 
     var dataSize: UInt32 = 0
 
@@ -451,11 +443,10 @@ static func groupBluetoothEndpoints(
 
     static func inspect() -> String {
 
-        var propertyAddress = AudioObjectPropertyAddress(
-            mSelector: kAudioHardwarePropertyDevices,
-            mScope: kAudioObjectPropertyScopeGlobal,
-            mElement: kAudioObjectPropertyElementMaster
-        )
+var propertyAddress = CoreAudioHelpers.address(
+    selector: kAudioHardwarePropertyDevices,
+    scope: kAudioObjectPropertyScopeGlobal
+)
 
         var dataSize: UInt32 = 0
 
