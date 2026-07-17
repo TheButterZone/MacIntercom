@@ -99,72 +99,7 @@ if AudioObjectGetPropertyData(
             .fromOpaque(clientData)
             .takeUnretainedValue()
 
-        output.callbackCount += 1
-
-if output.callbackCount % 100 == 0 {
-
-    Logger.callback(
-        "\(output.device.name) output callbacks: \(output.callbackCount)"
-    )
-
-}
-
-        let buffers = UnsafeMutableAudioBufferListPointer(
-            outOutputData
-        )
-        
-
-for buffer in buffers {
-
-    let samples = buffer.mData!.assumingMemoryBound(
-        to: Float.self
-    )
-
-    let sampleCount = Int(buffer.mDataByteSize) /
-        MemoryLayout<Float>.size
-
-if DebugFlags.generateTestTone {
-
-    if output.device.transport == "Bluetooth" {
-
-output.testTone.fill(
-    samples,
-    count: sampleCount,
-    sampleRate: Float(output.device.sampleRate)
-)
-
-    } else {
-
-        for i in 0..<sampleCount {
-            samples[i] = 0
-        }
-
-    }
-
-    continue
-}
-
-    let incoming = output.audioBuffer.read(
-        count: sampleCount
-    )
-
-if output.callbackCount % 500 == 0 {
-
-    Logger.queue(
-        "\(output.device.name) callback: \(output.callbackCount) requested: \(sampleCount) received: \(incoming.count) queued: \(output.audioBuffer.sampleCount())"
-    )
-
-}
-
-    for i in 0..<sampleCount {
-
-        if i < incoming.count {
-            samples[i] = incoming[i]
-        } else {
-            samples[i] = 0
-        }
-    }
-}        
+    output.renderOutput(outOutputData)
 
         return noErr
 
@@ -238,4 +173,79 @@ func stop() {
     )
 }
 
+private func renderOutput(
+    _ outOutputData: UnsafeMutablePointer<AudioBufferList>?
+) {
+
+    guard let outOutputData = outOutputData else {
+        return
+    }
+
+    callbackCount += 1
+
+    if callbackCount % 100 == 0 {
+
+    Logger.callback(
+        "\(device.name) output callbacks: \(callbackCount)"
+    )
+
+}
+
+        let buffers = UnsafeMutableAudioBufferListPointer(
+            outOutputData
+        )
+        
+
+for buffer in buffers {
+
+    let samples = buffer.mData!.assumingMemoryBound(
+        to: Float.self
+    )
+
+    let sampleCount = Int(buffer.mDataByteSize) /
+        MemoryLayout<Float>.size
+
+if DebugFlags.generateTestTone {
+
+    if device.transport == "Bluetooth" {
+
+testTone.fill(
+    samples,
+    count: sampleCount,
+    sampleRate: Float(device.sampleRate)
+)
+
+    } else {
+
+        for i in 0..<sampleCount {
+            samples[i] = 0
+        }
+
+    }
+
+    continue
+}
+
+    let incoming = audioBuffer.read(
+        count: sampleCount
+    )
+
+if callbackCount % 500 == 0 {
+
+    Logger.queue(
+        "\(device.name) callback: \(callbackCount) requested: \(sampleCount) received: \(incoming.count) queued: \(audioBuffer.sampleCount())"
+    )
+
+}
+
+    for i in 0..<sampleCount {
+
+        if i < incoming.count {
+            samples[i] = incoming[i]
+        } else {
+            samples[i] = 0
+        }
+    }
+}
+}        
 }
