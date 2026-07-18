@@ -24,7 +24,7 @@ enum DebugFlags {
     static let logMediaRemote   = true
     static let showPerformanceStats = false
     static let bluetoothDebug = false
-    static let audioTelemetry = false
+    static let audioTelemetry = true
 
     // MARK: - Test tools
 

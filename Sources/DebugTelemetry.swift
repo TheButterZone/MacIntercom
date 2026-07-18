@@ -17,10 +17,17 @@ final class DebugTelemetry {
 
     private init() {
 
-        let url = URL(fileURLWithPath: FileManager.default.currentDirectoryPath)
-            .appendingPathComponent("MacIntercom.telemetry.log")
+        let executableDirectory =
+            URL(fileURLWithPath: CommandLine.arguments[0])
+                .deletingLastPathComponent()
 
-        outputURL = url
+        let repositoryRoot =
+            executableDirectory.deletingLastPathComponent()
+
+        outputURL =
+            repositoryRoot.appendingPathComponent(
+                "MacIntercom.telemetry.log"
+            )
     }
 
     func start() {
@@ -35,7 +42,9 @@ final class DebugTelemetry {
 
         try? FileManager.default.removeItem(at: outputURL)
 
-        timer = DispatchSource.makeTimerSource(queue: queue)
+        timer = DispatchSource.makeTimerSource(
+            queue: queue
+        )
 
         timer?.schedule(
             deadline: .now() + 1,
@@ -64,7 +73,10 @@ final class DebugTelemetry {
         }
 
         queue.async {
+
             self.lines.append(text)
+
+            self.flush()
         }
     }
 
@@ -77,27 +89,35 @@ final class DebugTelemetry {
         let text =
             lines.joined(separator: "\n") + "\n"
 
-        lines.removeAll(keepingCapacity: true)
+        lines.removeAll(
+            keepingCapacity: true
+        )
 
-if let data = text.data(using: .utf8) {
-
-    if FileManager.default.fileExists(atPath: outputURL.path) {
-
-        if let handle =
-            FileHandle(forWritingAtPath: outputURL.path) {
-
-            handle.seekToEndOfFile()
-
-            handle.write(data)
-
-            handle.closeFile()
+        guard
+            let data = text.data(using: .utf8)
+        else {
+            return
         }
 
-    } else {
+        if FileManager.default.fileExists(
+            atPath: outputURL.path
+        ) {
 
-        try? data.write(to: outputURL)
+            if let handle =
+                FileHandle(
+                    forWritingAtPath: outputURL.path
+                ) {
 
-    }
-}
+                handle.seekToEndOfFile()
+                handle.write(data)
+                handle.closeFile()
+            }
+
+        } else {
+
+            try? data.write(
+                to: outputURL
+            )
+        }
     }
 }
