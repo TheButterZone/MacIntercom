@@ -21,10 +21,7 @@ final class AudioCapture {
 
 private let shouldDownsample: Bool
 private let outputDevice: AudioDevice
-private let upsampler = AudioResampler(
-    inputSampleRate: 8000,
-    outputSampleRate: 48000
-)
+private var upsampler: AudioResampler
 
 init(
     device: AudioDevice,
@@ -38,6 +35,10 @@ init(
     self.audioBuffer = audioBuffer
     self.shouldDownsample = shouldDownsample
 
+self.upsampler = AudioResampler(
+    inputSampleRate: 8000,
+    outputSampleRate: outputDevice.sampleRate
+)
 }
 
     private func printStreamFormat() {
@@ -102,185 +103,33 @@ if AudioObjectGetPropertyData(
 
 }
 
-        let status = AudioDeviceCreateIOProcID(
-            device.id,
-            { (
-                inDevice,
-                inNow,
-                inInputData,
-                inInputTime,
-                outOutputData,
-                inOutputTime,
-                clientData
-            ) -> OSStatus in
+let status = AudioDeviceCreateIOProcID(
+    device.id,
+    { (
+        inDevice,
+        inNow,
+        inInputData,
+        inInputTime,
+        outOutputData,
+        inOutputTime,
+        clientData
+    ) -> OSStatus in
 
-                if let clientData = clientData {
+        if let clientData = clientData {
 
-                    let capture = Unmanaged<AudioCapture>
-                        .fromOpaque(clientData)
-                        .takeUnretainedValue()
+            let capture = Unmanaged<AudioCapture>
+                .fromOpaque(clientData)
+                .takeUnretainedValue()
 
-                    capture.callbackCount += 1
-
-    let bufferList = UnsafeMutableAudioBufferListPointer(
-        UnsafeMutablePointer(mutating: inInputData)
-    )
-
-if capture.callbackCount == 1 {
-    print("Audio buffers:", bufferList.count)
-
-    for (index, buffer) in bufferList.enumerated() {
-        print(
-            "Buffer",
-            index,
-            "bytes:",
-            buffer.mDataByteSize
-        )
-    }
-}
-
-    if let data = bufferList[0].mData {
-
-        let samples = data.assumingMemoryBound(
-            to: Float.self
-        )
-
-if !capture.hasReportedFirstCallback {
-
-    capture.hasReportedFirstCallback = true
-
-    DispatchQueue.main.async {
-
-        capture.onFirstCallback?()
-
-    }
-}
-
-        let sampleCount = Int(
-            bufferList[0].mDataByteSize
-        ) / MemoryLayout<Float>.size
-
-if capture.callbackCount == 1 {
-    print(
-        "Moo callback:",
-        sampleCount,
-        "float samples"
-    )
-}
-
-        var peak: Float = 0
-
-        for i in 0..<sampleCount {
-
-            let normalized = abs(samples[i])
-
-            if normalized > peak {
-                peak = normalized
-            }
-
-            if peak > capture.highestPeak {
-                capture.highestPeak = peak
-            }
+            capture.captureInput(inInputData)
         }
 
-        if capture.callbackCount % 500 == 0 {
-            Logger.levels("Highest input peak: \(capture.highestPeak)")
-            capture.highestPeak = 0
-        }        
+        return noErr
 
-        let capturedSamples = Array(
-            UnsafeBufferPointer(
-                start: samples,
-                count: sampleCount
-            )
-        )
-
-if capture.shouldDownsample {
-
-    let mono8k = capture.downsampleTo8kMono(
-        capturedSamples
-    )
-
-    let leveled = capture.applyAutomaticGain(
-        mono8k
-    )
-
-for sample in leveled {
-    let peak = abs(sample)
-
-    if peak > capture.highestProcessedPeak {
-        capture.highestProcessedPeak = peak
-    }
-}
-
-if capture.callbackCount % 500 == 0 {
-    Logger.levels("Highest processed peak: \(capture.highestProcessedPeak)")
-    capture.highestProcessedPeak = 0
-}
-
-if capture.callbackCount % 500 == 0 {
-    Logger.levels(
-	"Gain: \(capture.currentGain) Peak: \(capture.smoothedPeak)"
-    )
-}
-
-    capture.audioBuffer.write(
-        leveled
-    )
-
-} else {
-
-    let stereo48k = capture.upsampleTo48kStereo(
-        capturedSamples
-    )
-
-    let leveled = capture.applyAutomaticGain(
-        stereo48k
-    )
-
-for sample in leveled {
-    let peak = abs(sample)
-
-    if peak > capture.highestProcessedPeak {
-        capture.highestProcessedPeak = peak
-    }
-}
-
-if capture.callbackCount % 500 == 0 {
-    print("Highest processed peak: \(capture.highestProcessedPeak)")
-    capture.highestProcessedPeak = 0
-}
-
-if capture.callbackCount % 500 == 0 {
-    print(
-        "Gain:",
-        capture.currentGain,
-        "Peak:",
-        capture.smoothedPeak
-    )
-}
-
-    capture.audioBuffer.write(
-        leveled
-    )
-
-if capture.callbackCount % 100 == 0 {
-
-    Logger.queue(
-	"BT queue: \(capture.audioBuffer.sampleCount())"
+    },
+    UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
+    &ioProcID
 )
-}
-
-} 
-
-}
-                }
-
-                return noErr
-            },
-            UnsafeMutableRawPointer(Unmanaged.passUnretained(self).toOpaque()),
-            &ioProcID
-        )
 
 if status != noErr {
     print("Failed to create IOProc: \(status)")
@@ -324,6 +173,211 @@ if shouldStart {
 
 }
 
+}
+
+private func captureInput(
+    _ inInputData: UnsafePointer<AudioBufferList>?
+) {
+
+    guard let inInputData = inInputData else {
+        return
+    }
+
+    self.callbackCount += 1
+
+let bufferList = UnsafeMutableAudioBufferListPointer(
+    UnsafeMutablePointer(mutating: inInputData)
+)
+
+if self.callbackCount == 1 {
+    print("Audio buffers:", bufferList.count)
+
+    for (index, buffer) in bufferList.enumerated() {
+        print(
+            "Buffer",
+            index,
+            "bytes:",
+            buffer.mDataByteSize
+        )
+    }
+}
+
+    if let data = bufferList[0].mData {
+
+        let samples = data.assumingMemoryBound(
+            to: Float.self
+        )
+
+if !self.hasReportedFirstCallback {
+
+    self.hasReportedFirstCallback = true
+
+    DispatchQueue.main.async {
+
+        self.onFirstCallback?()
+
+    }
+}
+
+        let sampleCount = Int(
+            bufferList[0].mDataByteSize
+        ) / MemoryLayout<Float>.size
+
+if self.callbackCount == 1 {
+print(
+    "\(device.name) callback:",
+    sampleCount,
+    "float samples"
+)
+}
+
+        var peak: Float = 0
+
+        for i in 0..<sampleCount {
+
+            let normalized = abs(samples[i])
+
+            if normalized > peak {
+                peak = normalized
+            }
+
+            if peak > self.highestPeak {
+                self.highestPeak = peak
+            }
+        }
+
+if self.callbackCount % 500 == 0 {
+    print("Highest input peak: \(self.highestPeak)")
+    self.highestPeak = 0
+}     
+
+        let capturedSamples = Array(
+            UnsafeBufferPointer(
+                start: samples,
+                count: sampleCount
+            )
+        )
+
+if self.callbackCount % 100 == 0 {
+
+    DebugTelemetry.capture.log(
+        """
+CAPTURE
+device=\(device.name)
+samples=\(sampleCount)
+downsample=\(self.shouldDownsample)
+highestInputPeak=\(self.highestPeak)
+queue=\(self.audioBuffer.sampleCount())
+"""
+    )
+}
+
+if self.shouldDownsample {
+
+let mono8k = self.downsampleTo8kMono(
+    capturedSamples
+)
+
+let mono48k = self.upsampler.process(mono8k)
+
+let leveled = mono48k
+
+for sample in leveled {
+
+    let peak = abs(sample)
+
+    if peak > self.highestProcessedPeak {
+        self.highestProcessedPeak = peak
+    }
+}
+
+if self.callbackCount % 500 == 0 {
+    Logger.levels(
+        "Highest processed peak: \(self.highestProcessedPeak)"
+    )
+    self.highestProcessedPeak = 0
+}
+
+if self.callbackCount % 500 == 0 {
+    Logger.levels(
+        "Gain: \(self.currentGain) Peak: \(self.smoothedPeak)"
+    )
+}
+
+DebugTelemetry.capture.log(
+    """
+CTOB
+mono8k=\(mono8k.count)
+leveled=\(leveled.count)
+queue=\(self.audioBuffer.sampleCount())
+"""
+)
+
+self.audioBuffer.write(
+    leveled
+)
+
+} else {
+
+let stereo48k = self.resampleToOutputStereo(
+    capturedSamples
+)
+
+var peak: Float = 0
+
+for sample in stereo48k {
+    peak = max(peak, abs(sample))
+}
+
+if callbackCount % 100 == 0 {
+
+    DebugTelemetry.output.log(
+        """
+BTOC
+peak=\(peak)
+samples=\(stereo48k.count)
+queue=\(self.audioBuffer.sampleCount())
+"""
+    )
+}
+
+let leveled = stereo48k
+
+for sample in leveled {
+    let peak = abs(sample)
+
+    if peak > self.highestProcessedPeak {
+        self.highestProcessedPeak = peak
+    }
+}
+
+if self.callbackCount % 500 == 0 {
+    print("Highest processed peak: \(self.highestProcessedPeak)")
+    self.highestProcessedPeak = 0
+}
+
+if self.callbackCount % 500 == 0 {
+    print(
+        "Gain:",
+        self.currentGain,
+        "Peak:",
+        self.smoothedPeak
+    )
+}
+
+    self.audioBuffer.write(
+        leveled
+    )
+
+}
+
+if self.callbackCount % 100 == 0 {
+    Logger.queue(
+        "BT queue: \(self.audioBuffer.sampleCount())"
+    )
+}
+
+    }
 }
 
 private func applyAutomaticGain(
@@ -395,8 +449,8 @@ private func downsampleTo8kMono(
     _ samples: [Float]
 ) -> [Float] {
 
-    let inputRate: Float = 44100
-    let outputRate: Float = 8000
+let inputRate = Float(device.sampleRate)
+let outputRate: Float = 8000
 
     let step = inputRate / outputRate
 
@@ -449,21 +503,24 @@ output.append(
     return output
 }
 
-private func upsampleTo48kStereo(
+private func resampleToOutputStereo(
     _ samples: [Float]
 ) -> [Float] {
 
-    let mono = upsampler.process(samples)
+let mono = upsampler.process(
+    Array(stride(from: 0, to: samples.count, by: 2).map {
+        samples[$0]
+    })
+)
 
     var stereo: [Float] = []
     stereo.reserveCapacity(mono.count * 2)
 
     for sample in mono {
-        stereo.append(sample) // Left
-        stereo.append(sample) // Right
+        stereo.append(sample)
+        stereo.append(sample)
     }
 
-return stereo
+    return stereo
 }
-
 }

@@ -72,7 +72,6 @@ bluetoothToComputer.capture.onFirstCallback = {
 computerToBluetooth.start()
 
 DebugTelemetry.shared.start()
-DebugTelemetry.shared.record("Telemetry started")
 
 mediaKeyMonitor.start()
 bluetoothMonitor.start()

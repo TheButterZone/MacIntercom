@@ -4,6 +4,10 @@ final class DebugTelemetry {
 
     static let shared = DebugTelemetry()
 
+    static let capture = Capture()
+    static let output = Output()
+    static let buffer = Buffer()
+
     private let queue = DispatchQueue(
         label: "MacIntercom.DebugTelemetry",
         qos: .utility
@@ -40,7 +44,9 @@ final class DebugTelemetry {
             return
         }
 
-        try? FileManager.default.removeItem(at: outputURL)
+        try? FileManager.default.removeItem(
+            at: outputURL
+        )
 
         timer = DispatchSource.makeTimerSource(
             queue: queue
@@ -66,7 +72,9 @@ final class DebugTelemetry {
         flush()
     }
 
-    func record(_ text: String) {
+    func record(
+        _ text: String
+    ) {
 
         guard DebugFlags.audioTelemetry else {
             return
@@ -117,6 +125,39 @@ final class DebugTelemetry {
 
             try? data.write(
                 to: outputURL
+            )
+        }
+    }
+}
+
+extension DebugTelemetry {
+
+    final class Capture {
+
+        func log(_ text: String) {
+
+            DebugTelemetry.shared.record(
+                text
+            )
+        }
+    }
+
+    final class Output {
+
+        func log(_ text: String) {
+
+            DebugTelemetry.shared.record(
+                text
+            )
+        }
+    }
+
+    final class Buffer {
+
+        func log(_ text: String) {
+
+            DebugTelemetry.shared.record(
+                text
             )
         }
     }

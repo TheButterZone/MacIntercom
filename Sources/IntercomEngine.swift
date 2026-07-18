@@ -20,6 +20,17 @@ final class IntercomEngine {
 
         buffer = AudioBuffer(name: name)
 
+DebugTelemetry.capture.log(
+    """
+ENGINE=\(name)
+INPUT=\(route.input.name)
+INPUT_RATE=\(route.input.sampleRate)
+OUTPUT=\(route.output.name)
+OUTPUT_RATE=\(route.output.sampleRate)
+DOWNSAMPLE=\(shouldDownsample)
+"""
+)
+
         capture = AudioCapture(
             device: route.input,
             outputDevice: route.output,

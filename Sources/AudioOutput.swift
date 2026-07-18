@@ -202,8 +202,19 @@ for buffer in buffers {
         to: Float.self
     )
 
-    let sampleCount = Int(buffer.mDataByteSize) /
-        MemoryLayout<Float>.size
+let sampleCount = Int(buffer.mDataByteSize) /
+    MemoryLayout<Float>.size
+
+if callbackCount % 100 == 0 {
+
+    print(
+        device.name,
+        "OUTPUT REQUEST:",
+        sampleCount,
+        "channels:",
+        buffer.mNumberChannels
+    )
+}
 
 if DebugFlags.generateTestTone {
 
@@ -226,26 +237,25 @@ testTone.fill(
     continue
 }
 
-    let incoming = audioBuffer.read(
-        count: sampleCount
-    )
+let incoming = audioBuffer.read(
+    count: sampleCount
+)
 
-if callbackCount % 500 == 0 {
+for i in 0..<sampleCount {
 
-    Logger.queue(
-        "\(device.name) callback: \(callbackCount) requested: \(sampleCount) received: \(incoming.count) queued: \(audioBuffer.sampleCount())"
-    )
+    let monoIndex = i / 2
 
+    if monoIndex < incoming.count {
+        samples[i] = incoming[monoIndex]
+    } else {
+        samples[i] = 0
+    }
 }
 
-    for i in 0..<sampleCount {
+DebugTelemetry.output.log(
+    "OUTPUT \(device.name) read=\(incoming.count) queue=\(audioBuffer.sampleCount())"
+)
 
-        if i < incoming.count {
-            samples[i] = incoming[i]
-        } else {
-            samples[i] = 0
-        }
-    }
 }
 }        
 }
