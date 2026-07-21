@@ -2,18 +2,12 @@ import Foundation
 
 final class AudioResampler {
 
-    private var previousLastSample: Float?
-
     private let ratio: Double
-
-    // Remember where we are in the source stream between callbacks.
-    private var sourcePosition: Double = 0.0
 
     init(
         inputSampleRate: Double,
         outputSampleRate: Double
     ) {
-
         ratio = outputSampleRate / inputSampleRate
     }
 
@@ -25,34 +19,39 @@ final class AudioResampler {
             return []
         }
 
-        var input = samples
-
-        if let last = previousLastSample {
-            input.insert(last, at: 0)
-        }
-
-        previousLastSample = samples.last
+        let outputCount = Int(
+            Double(samples.count) * ratio
+        )
 
         var output: [Float] = []
+        output.reserveCapacity(outputCount)
 
-        while sourcePosition < Double(input.count - 1) {
+        for i in 0..<outputCount {
 
-            let index = Int(sourcePosition)
+            let position =
+                Double(i) / ratio
+
+            let index = Int(position)
 
             let fraction =
-                Float(sourcePosition - Double(index))
+                Float(position - Double(index))
 
-            let a = input[index]
-            let b = input[index + 1]
+            if index + 1 < samples.count {
 
-            output.append(
-                a + (b - a) * fraction
-            )
+                let a = samples[index]
+                let b = samples[index + 1]
 
-            sourcePosition += 1.0 / ratio
+                output.append(
+                    a + (b - a) * fraction
+                )
+
+            } else {
+
+                output.append(
+                    samples[index]
+                )
+            }
         }
-
-        sourcePosition -= Double(input.count - 1)
 
         return output
     }

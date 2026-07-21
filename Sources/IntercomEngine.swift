@@ -20,16 +20,17 @@ final class IntercomEngine {
 
         buffer = AudioBuffer(name: name)
 
-DebugTelemetry.capture.log(
-    """
-ENGINE=\(name)
-INPUT=\(route.input.name)
-INPUT_RATE=\(route.input.sampleRate)
-OUTPUT=\(route.output.name)
-OUTPUT_RATE=\(route.output.sampleRate)
-DOWNSAMPLE=\(shouldDownsample)
-"""
-)
+        DebugTelemetry.capture.log(
+            """
+            ENGINE=\(name)
+            INPUT=\(route.input.name)
+            INPUT_RATE=\(route.input.sampleRate)
+            OUTPUT=\(route.output.name)
+            OUTPUT_RATE=\(route.output.sampleRate)
+            DOWNSAMPLE=\(shouldDownsample)
+            PRIME=\(primeBuffer)
+            """
+        )
 
         capture = AudioCapture(
             device: route.input,
@@ -47,7 +48,32 @@ DOWNSAMPLE=\(shouldDownsample)
     func start() {
 
         Logger.audio("Starting capture")
+
         capture.start()
-	output.start()
+
+        if primeBuffer {
+
+            DispatchQueue.global(qos: .userInitiated).async {
+
+                let targetSamples = 512
+
+                while self.buffer.sampleCount() < targetSamples {
+
+                    usleep(10_000)
+
+                }
+
+                Logger.info(
+                    "Prime buffer reached: \(self.buffer.sampleCount()) samples"
+                )
+
+                self.output.start()
+            }
+
+        } else {
+
+            output.start()
+
+        }
     }
 }

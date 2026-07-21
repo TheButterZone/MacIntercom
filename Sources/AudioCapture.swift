@@ -274,6 +274,20 @@ if self.callbackCount % 500 == 0 {
     self.highestPeak = 0
 }     
 
+if self.callbackCount % 100 == 0 {
+
+    DebugTelemetry.capture.log(
+        """
+RAW CAPTURE
+device=\(device.name)
+rate=\(device.sampleRate)
+samples=\(sampleCount)
+channels=\(bufferList[0].mNumberChannels)
+"""
+    )
+
+}
+
         let capturedSamples = Array(
             UnsafeBufferPointer(
                 start: samples,
@@ -301,7 +315,18 @@ let mono8k = self.downsampleTo8kMono(
     capturedSamples
 )
 
-let leveled = mono8k
+let leveled = applyAutomaticGain(mono8k)
+
+if self.callbackCount % 100 == 0 {
+    DebugTelemetry.capture.log(
+        """
+AGC
+device=\(device.name)
+gain=\(self.currentGain)
+peak=\(self.smoothedPeak)
+"""
+    )
+}
 
 if self.callbackCount % 100 == 0 {
 
@@ -348,13 +373,13 @@ self.audioBuffer.write(
 
 } else {
 
-let stereo48k = self.resampleToOutputStereo(
+let mono44100 = self.resampleToOutputStereo(
     capturedSamples
 )
 
 var peak: Float = 0
 
-for sample in stereo48k {
+for sample in mono44100 {
     peak = max(peak, abs(sample))
 }
 
@@ -364,13 +389,24 @@ if callbackCount % 100 == 0 {
         """
 BTOC
 peak=\(peak)
-samples=\(stereo48k.count)
+samples=\(mono44100.count)
 queue=\(self.audioBuffer.sampleCount())
 """
     )
 }
 
-let leveled = stereo48k
+let leveled = applyAutomaticGain(mono44100)
+
+if self.callbackCount % 100 == 0 {
+    DebugTelemetry.capture.log(
+        """
+AGC
+device=\(device.name)
+gain=\(self.currentGain)
+peak=\(self.smoothedPeak)
+"""
+    )
+}
 
 for sample in leveled {
     let peak = abs(sample)
@@ -536,20 +572,17 @@ private func resampleToOutputStereo(
     _ samples: [Float]
 ) -> [Float] {
 
-let mono = upsampler.process(
-    Array(stride(from: 0, to: samples.count, by: 2).map {
-        samples[$0]
-    })
-)
+    let output = upsampler.process(samples)
 
-    var stereo: [Float] = []
-    stereo.reserveCapacity(mono.count * 2)
+    DebugTelemetry.capture.log(
+        """
+BT RESAMPLE OUTPUT
+inputSamples=\(samples.count)
+outputSamples=\(output.count)
+"""
+    )
 
-    for sample in mono {
-        stereo.append(sample)
-        stereo.append(sample)
-    }
-
-    return stereo
+    return output
 }
+
 }

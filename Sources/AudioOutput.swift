@@ -265,9 +265,17 @@ channels=\(buffer.mNumberChannels)
         }
 
 
-        let incoming = audioBuffer.read(
-            count: sampleCount
-        )
+let incoming: [Float]
+
+if buffer.mNumberChannels == 1 {
+    incoming = audioBuffer.read(
+        count: sampleCount
+    )
+} else {
+    incoming = audioBuffer.read(
+        count: sampleCount / 2
+    )
+}
 
 
 if buffer.mNumberChannels == 1 {

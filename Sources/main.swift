@@ -45,7 +45,7 @@ let computerToBluetooth = IntercomEngine(
     name: "Computer→BT",
     route: computerRoute,
     shouldDownsample: true,
-    primeBuffer: false
+    primeBuffer: true
 )
 
 let bluetoothToComputer = IntercomEngine(
