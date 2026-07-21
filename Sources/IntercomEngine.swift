@@ -9,6 +9,8 @@ final class IntercomEngine {
 
     private let primeBuffer: Bool
 
+    private var started = false
+
     init(
         name: String,
         route: IntercomRoute,
@@ -46,49 +48,70 @@ final class IntercomEngine {
     }
 
 
-func start() {
+    func start() {
 
-    Logger.audio(
-        """
-        ENGINE START
-        output=\(output.device.name)
-        toneMode=\(DebugFlags.generateTestTone)
-        """
-    )
+        if started {
 
-    if DebugFlags.generateTestTone {
+DebugTelemetry.capture.log(
+    """
+    ENGINE ALREADY STARTED
+    output=\(output.device.name)
+    """
+)
 
-        Logger.audio(
-            "TEST TONE MODE: output only"
-        )
-
-        output.start()
-        return
-    }
-
-    capture.start()
-
-    if primeBuffer {
-
-        DispatchQueue.global(qos: .userInitiated).async {
-
-            let targetSamples = 512
-
-            while self.buffer.sampleCount() < targetSamples {
-                usleep(10_000)
-            }
-
-            Logger.info(
-                "Prime buffer reached: \(self.buffer.sampleCount())"
-            )
-
-            self.output.start()
+            return
         }
 
-    } else {
+        started = true
 
-        output.start()
+Logger.info(
+    "Intercom  🎤 \(capture.device.name) → 🔊 \(output.device.name)  🎵 tone=\(DebugFlags.generateTestTone)"
+)
 
+
+        if DebugFlags.generateTestTone {
+
+Logger.info(
+    "🎵 Tone test  🔊 \(output.device.name)"
+)
+
+            output.start()
+            return
+        }
+
+
+        capture.start()
+
+
+        if primeBuffer {
+
+            DispatchQueue.global(qos: .userInitiated).async {
+
+                let targetSamples = 512
+
+                while self.buffer.sampleCount() < targetSamples {
+                    usleep(10_000)
+                }
+
+DebugTelemetry.capture.log(
+    """
+    AUDIO FLOW START
+    output=\(self.output.device.name)
+    queued=\(self.buffer.sampleCount())
+    """
+)
+
+Logger.info(
+    "🔄  Audio flowing  🎤 \(self.capture.device.name) → 🔊 \(self.output.device.name)"
+)
+
+                self.output.start()
+            }
+
+        } else {
+
+            output.start()
+
+        }
     }
-}
 }

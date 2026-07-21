@@ -84,16 +84,18 @@ channels=\(format.mChannelsPerFrame)
 bytesPerFrame=\(format.mBytesPerFrame)
 """
 )
-        } else {
-            print("Stream format error: \(status)")
-        }
+} else {
+    DebugTelemetry.capture.log(
+        """
+        STREAM FORMAT ERROR
+        device=\(device.name)
+        status=\(status)
+        """
+    )
+}
     }
 
-    func start() {
-
-        Logger.audio("Starting capture:")
-        Logger.audio("  Device: \(device.name)")
-        Logger.audio("  ID: \(device.id)")
+func start() {
 
 printStreamFormat()
 
@@ -114,9 +116,14 @@ if AudioObjectGetPropertyData(
     &frames
 ) == noErr {
 
-    Logger.audio(
-    "Input buffer frames: \(frames)"
-)
+    DebugTelemetry.capture.log(
+        """
+        CAPTURE START
+        device=\(device.name)
+        id=\(device.id)
+        frames=\(frames)
+        """
+    )
 
 }
 
@@ -149,7 +156,9 @@ let status = AudioDeviceCreateIOProcID(
 )
 
 if status != noErr {
-    print("Failed to create IOProc: \(status)")
+Logger.error(
+    "Failed to create capture IOProc \(device.name): \(status)"
+)
     return
 }
 
@@ -176,9 +185,9 @@ if shouldStart {
 
     if startStatus != noErr {
 
-        print(
-            "Failed to start device: \(startStatus)"
-        )
+Logger.error(
+    "Failed to start capture device \(device.name): \(startStatus)"
+)
 
     }
 
@@ -247,11 +256,14 @@ if !self.hasReportedFirstCallback {
         ) / MemoryLayout<Float>.size
 
 if self.callbackCount == 1 {
-print(
-    "\(device.name) callback:",
-    sampleCount,
-    "float samples"
-)
+
+    DebugTelemetry.capture.log(
+        """
+        FIRST CALLBACK
+        device=\(device.name)
+        samples=\(sampleCount)
+        """
+    )
 }
 
         var peak: Float = 0
@@ -270,7 +282,9 @@ print(
         }
 
 if self.callbackCount % 500 == 0 {
-    print("Highest input peak: \(self.highestPeak)")
+Logger.levels(
+    "Highest input peak: \(self.highestPeak)"
+)
     self.highestPeak = 0
 }     
 
@@ -417,17 +431,16 @@ for sample in leveled {
 }
 
 if self.callbackCount % 500 == 0 {
-    print("Highest processed peak: \(self.highestProcessedPeak)")
+Logger.levels(
+    "Highest processed peak: \(self.highestProcessedPeak)"
+)
     self.highestProcessedPeak = 0
 }
 
 if self.callbackCount % 500 == 0 {
-    print(
-        "Gain:",
-        self.currentGain,
-        "Peak:",
-        self.smoothedPeak
-    )
+Logger.levels(
+    "Gain: \(self.currentGain) Peak: \(self.smoothedPeak)"
+)
 }
 
     self.audioBuffer.write(

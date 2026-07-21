@@ -17,13 +17,17 @@ else {
     exit(1)
 }
 
-Logger.audio("Bluetooth route:")
-Logger.audio("  Input : \(bluetoothRoute.input.name)")
-Logger.audio("  Output: \(bluetoothRoute.output.name)")
+DebugTelemetry.capture.log(
+    """
+    AUDIO ROUTES
+    Bluetooth input=\(bluetoothRoute.input.name)
+    Bluetooth output=\(bluetoothRoute.output.name)
+    Computer input=\(computerRoute.input.name)
+    Computer output=\(computerRoute.output.name)
+    """
+)
 
-Logger.audio("Computer route:")
-Logger.audio("  Input : \(computerRoute.input.name)")
-Logger.audio("  Output: \(computerRoute.output.name)")
+Logger.info("MacIntercom running, audio routes initialized:")
 
 AudioInspector.printBufferFrameSize(
     bluetoothRoute.input
@@ -57,7 +61,7 @@ let bluetoothToComputer = IntercomEngine(
 
 if DebugFlags.generateTestTone {
 
-    Logger.audio("TEST TONE MODE: starting both engines")
+    Logger.info("🎵 TEST TONE MODE: starting both engines")
 
     computerToBluetooth.start()
     bluetoothToComputer.start()
@@ -66,9 +70,9 @@ if DebugFlags.generateTestTone {
 
     computerToBluetooth.capture.onFirstCallback = {
 
-        Logger.info(
-            "Computer capture is alive; starting Bluetooth engine"
-        )
+DebugTelemetry.capture.log(
+    "Computer capture active -> starting Bluetooth engine"
+)
 
         bluetoothToComputer.start()
     }
@@ -78,9 +82,9 @@ if DebugFlags.generateTestTone {
 
 bluetoothToComputer.capture.onFirstCallback = {
 
-    Logger.info(
-        "Bluetooth capture callback received"
-    )
+DebugTelemetry.capture.log(
+    "Bluetooth capture active"
+)
 
 }
 

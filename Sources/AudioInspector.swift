@@ -34,10 +34,10 @@ static func printBufferFrameSize(
     _ device: AudioDevice
 ) {
 
-var address = CoreAudioHelpers.address(
-    selector: kAudioDevicePropertyBufferFrameSize,
-    scope: kAudioObjectPropertyScopeGlobal
-)
+    var address = CoreAudioHelpers.address(
+        selector: kAudioDevicePropertyBufferFrameSize,
+        scope: kAudioObjectPropertyScopeGlobal
+    )
 
     var frames: UInt32 = 0
     var size = UInt32(MemoryLayout<UInt32>.size)
@@ -53,16 +53,22 @@ var address = CoreAudioHelpers.address(
 
     if status == noErr {
 
-        print(
-            "\(device.name) buffer frame size:",
-            frames
+        DebugTelemetry.capture.log(
+            """
+            BUFFER FORMAT
+            device=\(device.name)
+            frames=\(frames)
+            """
         )
 
     } else {
 
-        print(
-            "\(device.name) buffer frame size error:",
-            status
+        DebugTelemetry.capture.log(
+            """
+            BUFFER FORMAT ERROR
+            device=\(device.name)
+            status=\(status)
+            """
         )
     }
 }

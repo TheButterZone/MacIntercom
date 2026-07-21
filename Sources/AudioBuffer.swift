@@ -7,11 +7,14 @@ final class AudioBuffer {
     private var writtenThisSecond = 0
     private var readThisSecond = 0
     private var statsStarted = false
+    private var overflowCount = 0
+    private var lastOverflowLogged = 0
 
     private var samples: [Float] = []
     private var readIndex: Int = 0
 
     private let lock = NSLock()
+    private let maxQueued = 96000
 
     let name: String
 
@@ -33,7 +36,7 @@ final class AudioBuffer {
                 if DebugFlags.showPerformanceStats {
 
                     Logger.performance(
-                        "\(self.name) writes/sec: \(self.writtenThisSecond) reads/sec: \(self.readThisSecond) queued: \(self.samples.count)"
+                        "\(self.name) writes/sec: \(self.writtenThisSecond) reads/sec: \(self.readThisSecond) queued: \(self.samples.count - self.readIndex)"
                     )
 
                 }
@@ -54,21 +57,25 @@ func write(_ newSamples: [Float]) {
 
     let queued = samples.count - readIndex
 
-    print(
-        "BUFFER WRITE",
-        name,
-        "added=",
-        newSamples.count,
-        "queued=",
-        queued
-    )
+if queued > maxQueued {
 
-    let maxQueued = 96000
+    overflowCount += 1
 
-    if queued > maxQueued {
-        print("BUFFER OVERFLOW DROPPING")
-        readIndex = samples.count - maxQueued
+    if overflowCount % 100 == 1 {
+
+        DebugTelemetry.buffer.log(
+            """
+            BUFFER OVERFLOW
+            name=\(name)
+            queued=\(queued)
+            limit=\(maxQueued)
+            count=\(overflowCount)
+            """
+        )
     }
+
+    readIndex = samples.count - maxQueued
+}
 
     totalWritten += newSamples.count
     writtenThisSecond += newSamples.count
@@ -84,17 +91,6 @@ func read(count: Int) -> [Float] {
     let available = samples.count - readIndex
 
     let actual = min(count, available)
-
-    print(
-        "BUFFER READ",
-        name,
-        "requested=",
-        count,
-        "actual=",
-        actual,
-        "available=",
-        available
-    )
 
     let start = readIndex
     let end = start + actual

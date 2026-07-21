@@ -2,7 +2,7 @@ import Foundation
 
 final class TestTone {
 
-    private var callbackCount: Int = 0
+    private var callbackCount = 0
     private var phase: Float = 0
 
     private let frequency: Float
@@ -16,16 +16,21 @@ final class TestTone {
         self.amplitude = amplitude
     }
 
-    func logConfiguration(
-        name: String
-    ) {
-        print(
-            "AUDIO OUTPUT INIT",
-            name,
-            "tone",
-            frequency
-        )
+func logConfiguration(name: String) {
+
+    guard DebugFlags.generateTestTone else {
+        return
     }
+
+    Logger.info(
+        """
+        🎵 TEST TONE INIT
+        device=🔊 \(name)
+        frequency=\(frequency)
+        amplitude=\(amplitude)
+        """
+    )
+}
 
     func fill(
         _ samples: UnsafeMutablePointer<Float>,
@@ -39,13 +44,11 @@ final class TestTone {
         let increment =
             2.0 * Float.pi * frequency / sampleRate
 
-
         if channels == 1 {
 
             for i in 0..<count {
 
-                samples[i] =
-                    sin(phase) * amplitude
+                samples[i] = sin(phase) * amplitude
 
                 phase += increment
 
@@ -60,15 +63,12 @@ final class TestTone {
 
             for frame in 0..<frameCount {
 
-                let sample =
-                    sin(phase) * amplitude
+                let sample = sin(phase) * amplitude
 
                 for channel in 0..<channels {
-
                     samples[
                         frame * channels + channel
                     ] = sample
-
                 }
 
                 phase += increment
@@ -79,17 +79,17 @@ final class TestTone {
             }
         }
 
+        if DebugFlags.showPerformanceStats &&
+           callbackCount % 100 == 0 {
 
-        if callbackCount % 100 == 0 {
-
-            print(
-                "TEST TONE",
-                "frequency:",
-                frequency,
-                "samples:",
-                count,
-                "channels:",
-                channels
+            DebugTelemetry.output.log(
+                """
+                TEST TONE
+                frequency=\(frequency)
+                amplitude=\(amplitude)
+                samples=\(count)
+                channels=\(channels)
+                """
             )
         }
     }

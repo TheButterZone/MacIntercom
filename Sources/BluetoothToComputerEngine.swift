@@ -25,7 +25,6 @@ capture = AudioCapture(
 
 func start() {
 
-    print("Bluetooth engine: starting CAPTURE")
     capture.start()
 
     // Wait until we have enough audio buffered that the
@@ -36,13 +35,14 @@ func start() {
         usleep(1000) // 1 ms
     }
 
-    print(
-        "Bluetooth buffer primed:",
-        buffer.sampleCount(),
-        "samples"
-    )
+DebugTelemetry.output.log(
+    """
+    AUDIO READY
+    🎤 \(capture.device.name) → 🔊 \(output.device.name)
+    queued=\(buffer.sampleCount())
+    """
+)
 
-    print("Bluetooth engine: starting OUTPUT")
     output.start()
 }
 }

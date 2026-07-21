@@ -58,11 +58,17 @@ var address = CoreAudioHelpers.address(
 
     if status == noErr {
 
-	Logger.audio("Output Sample Rate: \(format.mSampleRate)")
-	Logger.audio("Output Format ID: \(format.mFormatID)")
-	Logger.audio("Output Bits per channel: \(format.mBitsPerChannel)")
-	Logger.audio("Output Channels: \(format.mChannelsPerFrame)")
-	Logger.audio("Output Bytes per frame: \(format.mBytesPerFrame)")
+DebugTelemetry.output.log(
+    """
+    OUTPUT FORMAT
+    device=\(device.name)
+    sampleRate=\(format.mSampleRate)
+    formatID=\(format.mFormatID)
+    bits=\(format.mBitsPerChannel)
+    channels=\(format.mChannelsPerFrame)
+    bytesPerFrame=\(format.mBytesPerFrame)
+    """
+)
     }
 }
 
@@ -75,9 +81,14 @@ if ioProcID != nil {
     stop()
 }
 
-        Logger.audio("Starting output:")
-        Logger.audio("  Device: \(device.name)")
-        Logger.audio("  ID: \(device.id)")
+DebugTelemetry.output.log(
+    """
+    OUTPUT START
+    device=\(device.name)
+    id=\(device.id)
+    """
+)
+
 printStreamFormat()
 
 var address = CoreAudioHelpers.address(
@@ -97,7 +108,13 @@ if AudioObjectGetPropertyData(
     &frames
 ) == noErr {
 
-    Logger.audio("Output buffer frames: \(frames)")
+    DebugTelemetry.output.log(
+    """
+    OUTPUT BUFFER
+    device=\(device.name)
+    frames=\(frames)
+    """
+)
 }
 
         let status = AudioDeviceCreateIOProcID(
@@ -130,7 +147,9 @@ if AudioObjectGetPropertyData(
         )
 
         if status != noErr {
-            print("Failed to create output IOProc: \(status)")
+            Logger.error(
+    "Failed to create output IOProc \(device.name): \(status)"
+)
             return
         }
 
@@ -163,9 +182,12 @@ if startStatus != noErr {
 
 } else {
 
-    Logger.info(
-        "DEBUG: Output disabled for \(device.name)"
-    )
+DebugTelemetry.output.log(
+    """
+    OUTPUT DISABLED
+    device=\(device.name)
+    """
+)
 
 }
 
@@ -203,20 +225,14 @@ private func renderOutput(
     }
 
     callbackCount += 1
-if callbackCount < 5 {
-    print(
-        "OUTPUT CALLBACK ACTIVE",
-        device.name
+
+if callbackCount % 1000 == 0 {
+
+    DebugTelemetry.output.log(
+        "\(device.name) callbacks=\(callbackCount)"
     )
+
 }
-
-    if callbackCount % 100 == 0 {
-
-        Logger.callback(
-            "\(device.name) output callbacks: \(callbackCount)"
-        )
-
-    }
 
     let buffers = UnsafeMutableAudioBufferListPointer(
         outOutputData
@@ -247,98 +263,85 @@ if callbackCount % 100 == 0 {
 }
 
 
-    for buffer in buffers {
+for buffer in buffers {
 
-        guard let data = buffer.mData else {
-            continue
-        }
+    guard let data = buffer.mData else {
+        continue
+    }
 
-        let samples = data.assumingMemoryBound(
-            to: Float.self
+    let samples = data.assumingMemoryBound(
+        to: Float.self
+    )
+
+    let sampleCount =
+        Int(buffer.mDataByteSize) /
+        MemoryLayout<Float>.size
+
+    if DebugFlags.generateTestTone {
+
+        testTone.fill(
+            samples,
+            count: sampleCount,
+            sampleRate: Float(device.sampleRate),
+            channels: Int(buffer.mNumberChannels)
         )
 
-        let sampleCount =
-            Int(buffer.mDataByteSize) /
-            MemoryLayout<Float>.size
+        continue
+    }
 
-if DebugFlags.generateTestTone {
 
-testTone.fill(
-    samples,
-    count: sampleCount,
-    sampleRate: Float(device.sampleRate),
-    channels: Int(buffer.mNumberChannels)
-)
+    let incoming: [Float]
 
-    continue
-}
+    if buffer.mNumberChannels == 1 {
+        incoming = audioBuffer.read(
+            count: sampleCount
+        )
+    } else {
+        incoming = audioBuffer.read(
+            count: sampleCount / 2
+        )
+    }
 
-        if callbackCount % 100 == 0 {
 
-            print(
-                device.name,
-                "OUTPUT REQUEST:",
-                sampleCount,
-                "channels:",
-                buffer.mNumberChannels
-            )
+    if buffer.mNumberChannels == 1 {
 
+        for i in 0..<sampleCount {
+
+            if i < incoming.count {
+                samples[i] = incoming[i]
+            } else {
+                samples[i] = 0
+            }
         }
 
-let incoming: [Float]
+    } else {
 
-if buffer.mNumberChannels == 1 {
-    incoming = audioBuffer.read(
-        count: sampleCount
-    )
-} else {
-    incoming = audioBuffer.read(
-        count: sampleCount / 2
-    )
-}
+        for i in 0..<sampleCount {
 
+            let monoIndex = i / 2
 
-if buffer.mNumberChannels == 1 {
-
-    // Mono output buffer (Moo)
-
-    for i in 0..<sampleCount {
-
-        if i < incoming.count {
-            samples[i] = incoming[i]
-        } else {
-            samples[i] = 0
+            if monoIndex < incoming.count {
+                samples[i] = incoming[monoIndex]
+            } else {
+                samples[i] = 0
+            }
         }
     }
 
-} else {
 
-    // Stereo output buffer (Built-in Output)
+    if callbackCount % 500 == 0 {
 
-    for i in 0..<sampleCount {
-
-        let monoIndex = i / 2
-
-        if monoIndex < incoming.count {
-            samples[i] = incoming[monoIndex]
-        } else {
-            samples[i] = 0
-        }
-    }
-}
-
-if callbackCount % 100 == 0 {
         DebugTelemetry.output.log(
             """
-OUTPUT
-device=\(device.name)
-requested=\(sampleCount)
-channels=\(buffer.mNumberChannels)
-read=\(incoming.count)
-queue=\(audioBuffer.sampleCount())
-"""
+            OUTPUT
+            device=\(device.name)
+            requested=\(sampleCount)
+            channels=\(buffer.mNumberChannels)
+            read=\(incoming.count)
+            queue=\(audioBuffer.sampleCount())
+            """
         )
-	}
     }
+}
 }
 }

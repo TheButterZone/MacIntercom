@@ -40,6 +40,15 @@ enum Logger {
 	debug("📊 \(message)")
     }
 
+
+    static func device(_ message: String) {
+	guard DebugFlags.logDeviceStartup else {
+            return
+	}
+
+	print("🔧 \(message)")
+    }
+
     static func audio(_ message: String) {
 
         guard DebugFlags.logDeviceStartup else {
