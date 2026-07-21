@@ -12,6 +12,12 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 - Test tone diagnostics
 - Audio route status logging
 
+## Installation
+
+MacIntercom is currently distributed as source code and unsigned release binaries.
+
+Because MacIntercom is not signed with an Apple Developer certificate, macOS may require manually approving the executable before first use.
+
 ## Roadmap
 
   - Dynamic hardware format adaptation
