@@ -46,53 +46,49 @@ final class IntercomEngine {
     }
 
 
-    func start() {
+func start() {
+
+    Logger.audio(
+        """
+        ENGINE START
+        output=\(output.device.name)
+        toneMode=\(DebugFlags.generateTestTone)
+        """
+    )
+
+    if DebugFlags.generateTestTone {
 
         Logger.audio(
-            """
-            ENGINE START
-            output=\(output.device.name)
-            toneMode=\(DebugFlags.generateTestTone)
-            """
+            "TEST TONE MODE: output only"
         )
 
-        capture.start()
+        output.start()
+        return
+    }
 
+    capture.start()
 
-        if DebugFlags.generateTestTone {
+    if primeBuffer {
 
-            Logger.audio(
-                "TEST TONE MODE: starting output immediately"
-            )
+        DispatchQueue.global(qos: .userInitiated).async {
 
-            output.start()
-            return
-        }
+            let targetSamples = 512
 
-
-        if primeBuffer {
-
-            DispatchQueue.global(qos: .userInitiated).async {
-
-                let targetSamples = 512
-
-                while self.buffer.sampleCount() < targetSamples {
-
-                    usleep(10_000)
-
-                }
-
-                Logger.info(
-                    "Prime buffer reached \(self.buffer.sampleCount()) samples for \(self.output.device.name)"
-                )
-
-                self.output.start()
+            while self.buffer.sampleCount() < targetSamples {
+                usleep(10_000)
             }
 
-        } else {
+            Logger.info(
+                "Prime buffer reached: \(self.buffer.sampleCount())"
+            )
 
-            output.start()
-
+            self.output.start()
         }
+
+    } else {
+
+        output.start()
+
     }
+}
 }

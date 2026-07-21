@@ -4,9 +4,9 @@ enum DebugFlags {
 
     // MARK: - Device startup
 
-    static let enableComputerCapture  = false
+    static let enableComputerCapture  = true
     static let enableComputerOutput   = true
-    static let enableBluetoothCapture = false
+    static let enableBluetoothCapture = true
     static let enableBluetoothOutput  = true
 
     // MARK: - Audio processing
