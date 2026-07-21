@@ -31,7 +31,7 @@ final class AudioResampler {
             input.insert(last, at: 0)
         }
 
-        previousLastSample = input.last
+        previousLastSample = samples.last
 
         var output: [Float] = []
 

@@ -35,13 +35,24 @@ init(
     self.audioBuffer = audioBuffer
     self.shouldDownsample = shouldDownsample
 
-self.upsampler = AudioResampler(
-    inputSampleRate: 8000,
-    outputSampleRate: outputDevice.sampleRate
-)
+    if shouldDownsample {
+
+        self.upsampler = AudioResampler(
+            inputSampleRate: 8000,
+            outputSampleRate: outputDevice.sampleRate
+        )
+
+    } else {
+
+        self.upsampler = AudioResampler(
+            inputSampleRate: device.sampleRate,
+            outputSampleRate: outputDevice.sampleRate
+        )
+
+    }
 }
 
-    private func printStreamFormat() {
+private func printStreamFormat() {
 
 var address = CoreAudioHelpers.address(
     selector: kAudioDevicePropertyStreamFormat,
@@ -61,12 +72,18 @@ var address = CoreAudioHelpers.address(
         )
 
         if status == noErr {
-            print("Sample Rate: \(format.mSampleRate)")
-            print("Format ID: \(format.mFormatID)")
-            print("Format Flags: \(format.mFormatFlags)")
-            print("Bits per channel: \(format.mBitsPerChannel)")
-            print("Channels: \(format.mChannelsPerFrame)")
-            print("Bytes per frame: \(format.mBytesPerFrame)")
+DebugTelemetry.capture.log(
+    """
+STREAM FORMAT
+device=\(device.name)
+sampleRate=\(format.mSampleRate)
+formatID=\(format.mFormatID)
+flags=\(format.mFormatFlags)
+bits=\(format.mBitsPerChannel)
+channels=\(format.mChannelsPerFrame)
+bytesPerFrame=\(format.mBytesPerFrame)
+"""
+)
         } else {
             print("Stream format error: \(status)")
         }
@@ -190,14 +207,20 @@ let bufferList = UnsafeMutableAudioBufferListPointer(
 )
 
 if self.callbackCount == 1 {
-    print("Audio buffers:", bufferList.count)
+
+    DebugTelemetry.capture.log(
+        "Audio buffers: \(bufferList.count)"
+    )
 
     for (index, buffer) in bufferList.enumerated() {
-        print(
-            "Buffer",
-            index,
-            "bytes:",
-            buffer.mDataByteSize
+
+        DebugTelemetry.capture.log(
+            """
+            Buffer
+            index=\(index)
+            bytes=\(buffer.mDataByteSize)
+            channels=\(buffer.mNumberChannels)
+            """
         )
     }
 }
@@ -278,9 +301,15 @@ let mono8k = self.downsampleTo8kMono(
     capturedSamples
 )
 
-let mono48k = self.upsampler.process(mono8k)
+let leveled = mono8k
 
-let leveled = mono48k
+if self.callbackCount % 100 == 0 {
+
+    DebugTelemetry.capture.log(
+        "DOWNSAMPLED=\(mono8k.count)"
+    )
+
+}
 
 for sample in leveled {
 

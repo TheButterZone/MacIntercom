@@ -185,77 +185,129 @@ private func renderOutput(
 
     if callbackCount % 100 == 0 {
 
-    Logger.callback(
-        "\(device.name) output callbacks: \(callbackCount)"
-    )
-
-}
-
-        let buffers = UnsafeMutableAudioBufferListPointer(
-            outOutputData
+        Logger.callback(
+            "\(device.name) output callbacks: \(callbackCount)"
         )
-        
 
-for buffer in buffers {
+    }
 
-    let samples = buffer.mData!.assumingMemoryBound(
-        to: Float.self
+    let buffers = UnsafeMutableAudioBufferListPointer(
+        outOutputData
     )
 
-let sampleCount = Int(buffer.mDataByteSize) /
-    MemoryLayout<Float>.size
-
-if callbackCount % 100 == 0 {
-
-    print(
-        device.name,
-        "OUTPUT REQUEST:",
-        sampleCount,
-        "channels:",
-        buffer.mNumberChannels
+    DebugTelemetry.output.log(
+        """
+OUTPUT BUFFER LAYOUT
+device=\(device.name)
+bufferCount=\(buffers.count)
+"""
     )
-}
 
-if DebugFlags.generateTestTone {
+    for (index, buffer) in buffers.enumerated() {
 
-    if device.transport == "Bluetooth" {
+        DebugTelemetry.output.log(
+            """
+buffer=\(index)
+bytes=\(buffer.mDataByteSize)
+channels=\(buffer.mNumberChannels)
+"""
+        )
+    }
 
-testTone.fill(
-    samples,
-    count: sampleCount,
-    sampleRate: Float(device.sampleRate)
-)
 
-    } else {
+    for buffer in buffers {
 
-        for i in 0..<sampleCount {
-            samples[i] = 0
+        guard let data = buffer.mData else {
+            continue
         }
 
+        let samples = data.assumingMemoryBound(
+            to: Float.self
+        )
+
+        let sampleCount =
+            Int(buffer.mDataByteSize) /
+            MemoryLayout<Float>.size
+
+
+        if callbackCount % 100 == 0 {
+
+            print(
+                device.name,
+                "OUTPUT REQUEST:",
+                sampleCount,
+                "channels:",
+                buffer.mNumberChannels
+            )
+
+        }
+
+
+        if DebugFlags.generateTestTone {
+
+            if device.transport == "Bluetooth" {
+
+                testTone.fill(
+                    samples,
+                    count: sampleCount,
+                    sampleRate: Float(device.sampleRate)
+                )
+
+            } else {
+
+                for i in 0..<sampleCount {
+                    samples[i] = 0
+                }
+
+            }
+
+            continue
+        }
+
+
+        let incoming = audioBuffer.read(
+            count: sampleCount
+        )
+
+
+if buffer.mNumberChannels == 1 {
+
+    // Mono output buffer (Moo)
+
+    for i in 0..<sampleCount {
+
+        if i < incoming.count {
+            samples[i] = incoming[i]
+        } else {
+            samples[i] = 0
+        }
     }
 
-    continue
-}
+} else {
 
-let incoming = audioBuffer.read(
-    count: sampleCount
-)
+    // Stereo output buffer (Built-in Output)
 
-for i in 0..<sampleCount {
+    for i in 0..<sampleCount {
 
-    let monoIndex = i / 2
+        let monoIndex = i / 2
 
-    if monoIndex < incoming.count {
-        samples[i] = incoming[monoIndex]
-    } else {
-        samples[i] = 0
+        if monoIndex < incoming.count {
+            samples[i] = incoming[monoIndex]
+        } else {
+            samples[i] = 0
+        }
     }
 }
-
-DebugTelemetry.output.log(
-    "OUTPUT \(device.name) read=\(incoming.count) queue=\(audioBuffer.sampleCount())"
-)
-
+        DebugTelemetry.output.log(
+            """
+OUTPUT
+device=\(device.name)
+requested=\(sampleCount)
+channels=\(buffer.mNumberChannels)
+read=\(incoming.count)
+queue=\(audioBuffer.sampleCount())
+"""
+        )
+    }
 }
-}        
 }

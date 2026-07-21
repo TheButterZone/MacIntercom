@@ -9,6 +9,8 @@ final class AudioBuffer {
     private var statsStarted = false
 
     private var samples: [Float] = []
+    private var readIndex: Int = 0
+
     private let lock = NSLock()
 
     let name: String
@@ -44,47 +46,64 @@ final class AudioBuffer {
         }
     }
 
-    func write(_ newSamples: [Float]) {
+func write(_ newSamples: [Float]) {
 
-        lock.lock()
+    lock.lock()
 
-        samples.append(contentsOf: newSamples)
+    samples.append(contentsOf: newSamples)
 
-        let maxQueued = 12288
+    let maxQueued = 12288
 
-        if samples.count > maxQueued {
-            samples.removeFirst(samples.count - maxQueued)
-        }
+    if samples.count - readIndex > maxQueued {
 
-        totalWritten += newSamples.count
-        writtenThisSecond += newSamples.count
-
-        lock.unlock()
+        readIndex = samples.count - maxQueued
     }
 
-    func read(count: Int) -> [Float] {
+    totalWritten += newSamples.count
+    writtenThisSecond += newSamples.count
 
-        lock.lock()
-        defer { lock.unlock() }
+    lock.unlock()
+}
 
-        let actual = min(count, samples.count)
+func read(count: Int) -> [Float] {
 
-        let output = Array(samples.prefix(actual))
+    lock.lock()
+    defer { lock.unlock() }
 
-        readThisSecond += output.count
+    let available = samples.count - readIndex
 
-        samples.removeFirst(actual)
+    let actual = min(
+        count,
+        available
+    )
 
-        totalRead += output.count
+    let start = readIndex
+    let end = start + actual
 
-        return output
+    let output = Array(
+        samples[start..<end]
+    )
+
+    readIndex += actual
+
+    readThisSecond += output.count
+    totalRead += output.count
+
+    if readIndex > 4096 &&
+       readIndex > samples.count / 2 {
+
+        samples.removeFirst(readIndex)
+        readIndex = 0
     }
 
-    func sampleCount() -> Int {
+    return output
+}
 
-        lock.lock()
-        defer { lock.unlock() }
+func sampleCount() -> Int {
 
-        return samples.count
-    }
+    lock.lock()
+    defer { lock.unlock() }
+
+    return samples.count - readIndex
+}
 }

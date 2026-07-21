@@ -41,7 +41,7 @@ final class TestTone {
             }
         }
 
-        if callbackCount % 100 == 0 {
+        if callbackCount % 10 == 0 {
 
             print(
                 "TEST TONE:",
