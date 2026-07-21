@@ -45,11 +45,30 @@ final class IntercomEngine {
         )
     }
 
+
     func start() {
 
-        Logger.audio("Starting capture")
+        Logger.audio(
+            """
+            ENGINE START
+            output=\(output.device.name)
+            toneMode=\(DebugFlags.generateTestTone)
+            """
+        )
 
         capture.start()
+
+
+        if DebugFlags.generateTestTone {
+
+            Logger.audio(
+                "TEST TONE MODE: starting output immediately"
+            )
+
+            output.start()
+            return
+        }
+
 
         if primeBuffer {
 
@@ -64,7 +83,7 @@ final class IntercomEngine {
                 }
 
                 Logger.info(
-                    "Prime buffer reached: \(self.buffer.sampleCount()) samples"
+                    "Prime buffer reached \(self.buffer.sampleCount()) samples for \(self.output.device.name)"
                 )
 
                 self.output.start()

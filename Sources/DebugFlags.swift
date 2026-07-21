@@ -4,9 +4,9 @@ enum DebugFlags {
 
     // MARK: - Device startup
 
-    static let enableComputerCapture  = true
+    static let enableComputerCapture  = false
     static let enableComputerOutput   = true
-    static let enableBluetoothCapture = true
+    static let enableBluetoothCapture = false
     static let enableBluetoothOutput  = true
 
     // MARK: - Audio processing
@@ -28,6 +28,9 @@ enum DebugFlags {
 
     // MARK: - Test tools
 
-    static let generateTestTone = false
+    static let generateTestTone = true
+    static let computerOutputToneFrequency: Float = 220
+    static let bluetoothOutputToneFrequency: Float = 440
+    static let testToneAmplitude: Float = 0.25
 
 }

@@ -55,17 +55,32 @@ let bluetoothToComputer = IntercomEngine(
     primeBuffer: true
 )
 
-computerToBluetooth.capture.onFirstCallback = {
+if DebugFlags.generateTestTone {
 
-    Logger.info("Computer capture is alive; starting Bluetooth engine")
+    Logger.audio("TEST TONE MODE: starting both engines")
 
+    computerToBluetooth.start()
     bluetoothToComputer.start()
 
+} else {
+
+    computerToBluetooth.capture.onFirstCallback = {
+
+        Logger.info(
+            "Computer capture is alive; starting Bluetooth engine"
+        )
+
+        bluetoothToComputer.start()
+    }
+
+    computerToBluetooth.start()
 }
 
 bluetoothToComputer.capture.onFirstCallback = {
 
-    Logger.info("Bluetooth capture callback received")
+    Logger.info(
+        "Bluetooth capture callback received"
+    )
 
 }
 

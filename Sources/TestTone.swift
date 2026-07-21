@@ -2,18 +2,36 @@ import Foundation
 
 final class TestTone {
 
-    private var generatedSamples: Int = 0
     private var callbackCount: Int = 0
-
     private var phase: Float = 0
 
-    var frequency: Float = 440
-    var amplitude: Float = 0.25
+    private let frequency: Float
+    private let amplitude: Float
+
+    init(
+        frequency: Float,
+        amplitude: Float
+    ) {
+        self.frequency = frequency
+        self.amplitude = amplitude
+    }
+
+    func logConfiguration(
+        name: String
+    ) {
+        print(
+            "AUDIO OUTPUT INIT",
+            name,
+            "tone",
+            frequency
+        )
+    }
 
     func fill(
         _ samples: UnsafeMutablePointer<Float>,
         count: Int,
-        sampleRate: Float
+        sampleRate: Float,
+        channels: Int
     ) {
 
         callbackCount += 1
@@ -21,41 +39,58 @@ final class TestTone {
         let increment =
             2.0 * Float.pi * frequency / sampleRate
 
-        let frameCount = count / 2
 
-        generatedSamples += frameCount
+        if channels == 1 {
 
-        for frame in 0..<frameCount {
+            for i in 0..<count {
 
-            let sample = sin(phase) * amplitude
+                samples[i] =
+                    sin(phase) * amplitude
 
-            let index = frame * 2
+                phase += increment
 
-            samples[index] = sample
-            samples[index + 1] = sample
+                if phase >= 2.0 * Float.pi {
+                    phase -= 2.0 * Float.pi
+                }
+            }
 
-            phase += increment
+        } else {
 
-            if phase >= 2.0 * Float.pi {
-                phase -= 2.0 * Float.pi
+            let frameCount = count / channels
+
+            for frame in 0..<frameCount {
+
+                let sample =
+                    sin(phase) * amplitude
+
+                for channel in 0..<channels {
+
+                    samples[
+                        frame * channels + channel
+                    ] = sample
+
+                }
+
+                phase += increment
+
+                if phase >= 2.0 * Float.pi {
+                    phase -= 2.0 * Float.pi
+                }
             }
         }
 
-        if callbackCount % 10 == 0 {
+
+        if callbackCount % 100 == 0 {
 
             print(
-                "TEST TONE:",
-                "callbacks:",
-                callbackCount,
-                "samples:",
-                generatedSamples,
+                "TEST TONE",
                 "frequency:",
                 frequency,
-                "amplitude:",
-                amplitude
+                "samples:",
+                count,
+                "channels:",
+                channels
             )
-
         }
     }
-
 }

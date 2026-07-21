@@ -9,12 +9,33 @@ final class AudioOutput {
     private var ioProcID: AudioDeviceIOProcID?
     private var callbackCount = 0
 
-    let testTone = TestTone()
+    private let testTone: TestTone
 
-    init(device: AudioDevice, audioBuffer: AudioBuffer) {
-        self.device = device
-        self.audioBuffer = audioBuffer
+init(
+    device: AudioDevice,
+    audioBuffer: AudioBuffer
+) {
+
+    self.device = device
+    self.audioBuffer = audioBuffer
+
+    let frequency: Float
+
+    if device.transport == "Bluetooth" {
+        frequency = DebugFlags.bluetoothOutputToneFrequency
+    } else {
+        frequency = DebugFlags.computerOutputToneFrequency
     }
+
+self.testTone = TestTone(
+    frequency: frequency,
+    amplitude: DebugFlags.testToneAmplitude
+)
+
+self.testTone.logConfiguration(
+    name: device.name
+)
+}
     
     private func printStreamFormat() {
 
@@ -182,6 +203,12 @@ private func renderOutput(
     }
 
     callbackCount += 1
+if callbackCount < 5 {
+    print(
+        "OUTPUT CALLBACK ACTIVE",
+        device.name
+    )
+}
 
     if callbackCount % 100 == 0 {
 
@@ -195,6 +222,7 @@ private func renderOutput(
         outOutputData
     )
 
+if callbackCount % 100 == 0 {
     DebugTelemetry.output.log(
         """
 OUTPUT BUFFER LAYOUT
@@ -202,17 +230,21 @@ device=\(device.name)
 bufferCount=\(buffers.count)
 """
     )
+}
+
+if callbackCount % 100 == 0 {
 
     for (index, buffer) in buffers.enumerated() {
 
         DebugTelemetry.output.log(
             """
-buffer=\(index)
-bytes=\(buffer.mDataByteSize)
-channels=\(buffer.mNumberChannels)
-"""
+            buffer=\(index)
+            bytes=\(buffer.mDataByteSize)
+            channels=\(buffer.mNumberChannels)
+            """
         )
     }
+}
 
 
     for buffer in buffers {
@@ -229,6 +261,17 @@ channels=\(buffer.mNumberChannels)
             Int(buffer.mDataByteSize) /
             MemoryLayout<Float>.size
 
+if DebugFlags.generateTestTone {
+
+testTone.fill(
+    samples,
+    count: sampleCount,
+    sampleRate: Float(device.sampleRate),
+    channels: Int(buffer.mNumberChannels)
+)
+
+    continue
+}
 
         if callbackCount % 100 == 0 {
 
@@ -241,29 +284,6 @@ channels=\(buffer.mNumberChannels)
             )
 
         }
-
-
-        if DebugFlags.generateTestTone {
-
-            if device.transport == "Bluetooth" {
-
-                testTone.fill(
-                    samples,
-                    count: sampleCount,
-                    sampleRate: Float(device.sampleRate)
-                )
-
-            } else {
-
-                for i in 0..<sampleCount {
-                    samples[i] = 0
-                }
-
-            }
-
-            continue
-        }
-
 
 let incoming: [Float]
 
@@ -306,6 +326,8 @@ if buffer.mNumberChannels == 1 {
         }
     }
 }
+
+if callbackCount % 100 == 0 {
         DebugTelemetry.output.log(
             """
 OUTPUT
@@ -316,6 +338,7 @@ read=\(incoming.count)
 queue=\(audioBuffer.sampleCount())
 """
         )
+	}
     }
 }
 }

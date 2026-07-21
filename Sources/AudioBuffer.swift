@@ -52,10 +52,21 @@ func write(_ newSamples: [Float]) {
 
     samples.append(contentsOf: newSamples)
 
-    let maxQueued = 12288
+    let queued = samples.count - readIndex
 
-    if samples.count - readIndex > maxQueued {
+    print(
+        "BUFFER WRITE",
+        name,
+        "added=",
+        newSamples.count,
+        "queued=",
+        queued
+    )
 
+    let maxQueued = 96000
+
+    if queued > maxQueued {
+        print("BUFFER OVERFLOW DROPPING")
         readIndex = samples.count - maxQueued
     }
 
@@ -72,8 +83,16 @@ func read(count: Int) -> [Float] {
 
     let available = samples.count - readIndex
 
-    let actual = min(
+    let actual = min(count, available)
+
+    print(
+        "BUFFER READ",
+        name,
+        "requested=",
         count,
+        "actual=",
+        actual,
+        "available=",
         available
     )
 
