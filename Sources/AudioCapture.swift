@@ -354,9 +354,21 @@ if self.shouldDownsample {
         channels: channels
     )
 
-    let leveled = applyAutomaticGain(mono8k)
+let processed: [Float]
 
-if self.callbackCount % 100 == 0 {
+if DebugFlags.enableAGC {
+
+    processed = applyAutomaticGain(mono8k)
+
+} else {
+
+    processed = mono8k
+
+}
+
+if DebugFlags.enableAGC &&
+   self.callbackCount % 100 == 0 {
+
     DebugTelemetry.capture.log(
         """
 AGC
@@ -365,6 +377,7 @@ gain=\(self.currentGain)
 peak=\(self.smoothedPeak)
 """
     )
+
 }
 
 if self.callbackCount % 100 == 0 {
@@ -375,7 +388,7 @@ if self.callbackCount % 100 == 0 {
 
 }
 
-for sample in leveled {
+for sample in processed {
 
     let peak = abs(sample)
 
@@ -384,30 +397,35 @@ for sample in leveled {
     }
 }
 
-if self.callbackCount % 500 == 0 {
+if DebugFlags.enableAGC &&
+   self.callbackCount % 500 == 0 {
+
     Logger.levels(
         "Highest processed peak: \(self.highestProcessedPeak)"
     )
     self.highestProcessedPeak = 0
 }
 
-if self.callbackCount % 500 == 0 {
+if DebugFlags.enableAGC &&
+   self.callbackCount % 500 == 0 {
+
     Logger.levels(
         "Gain: \(self.currentGain) Peak: \(self.smoothedPeak)"
     )
+
 }
 
 DebugTelemetry.capture.log(
     """
 CTOB
 mono8k=\(mono8k.count)
-leveled=\(leveled.count)
+processed=\(processed.count)
 queue=\(self.audioBuffer.sampleCount())
 """
 )
 
 self.audioBuffer.write(
-    leveled
+    processed
 )
 
 } else {
@@ -462,9 +480,21 @@ self.audioBuffer.write(
         )
     }
 
-    let leveled = applyAutomaticGain(mono44100)
+let processed: [Float]
 
-if self.callbackCount % 100 == 0 {
+if DebugFlags.enableAGC {
+
+    processed = applyAutomaticGain(mono44100)
+
+} else {
+
+    processed = mono44100
+
+}
+
+if DebugFlags.enableAGC &&
+   self.callbackCount % 100 == 0 {
+
     DebugTelemetry.capture.log(
         """
 AGC
@@ -473,9 +503,10 @@ gain=\(self.currentGain)
 peak=\(self.smoothedPeak)
 """
     )
+
 }
 
-for sample in leveled {
+for sample in processed {
     let peak = abs(sample)
 
     if peak > self.highestProcessedPeak {
@@ -483,22 +514,26 @@ for sample in leveled {
     }
 }
 
-if self.callbackCount % 500 == 0 {
-Logger.levels(
-    "Highest processed peak: \(self.highestProcessedPeak)"
-)
+if DebugFlags.enableAGC &&
+   self.callbackCount % 500 == 0 {
+
+    Logger.levels(
+        "Highest processed peak: \(self.highestProcessedPeak)"
+    )
     self.highestProcessedPeak = 0
 }
 
-if self.callbackCount % 500 == 0 {
-Logger.levels(
-    "Gain: \(self.currentGain) Peak: \(self.smoothedPeak)"
-)
+if DebugFlags.enableAGC &&
+   self.callbackCount % 500 == 0 {
+
+    Logger.levels(
+        "Gain: \(self.currentGain) Peak: \(self.smoothedPeak)"
+    )
 }
 
-    self.audioBuffer.write(
-        leveled
-    )
+self.audioBuffer.write(
+    processed
+)
 
 }
 
