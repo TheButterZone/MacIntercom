@@ -46,6 +46,10 @@ DebugTelemetry.capture.log(
     """
 )
 
+print("MacIntercom v0.1.1 — Copyright (C) 2026 TheButterZone")
+print("This program comes with ABSOLUTELY NO WARRANTY.")
+print("This is free software under the GPLv3; see the LICENSE file for details.\n")
+
 Logger.info("MacIntercom running, audio routes initialized:")
 
 AudioInspector.printBufferFrameSize(
