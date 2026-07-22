@@ -1,3 +1,22 @@
+//
+// MacIntercom
+// Copyright (C) 2026 TheButterZone
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see:
+// https://www.gnu.org/licenses/
+//
+
 import Foundation
 import CoreAudio
 
@@ -280,6 +299,32 @@ var address = CoreAudioHelpers.address(
     return makeDevice(deviceID)
 }
 
+static func defaultInputDevice() -> AudioDevice? {
+
+    var address = CoreAudioHelpers.address(
+        selector: kAudioHardwarePropertyDefaultInputDevice,
+        scope: kAudioObjectPropertyScopeGlobal
+    )
+
+    var deviceID = AudioDeviceID()
+    var size = UInt32(MemoryLayout<AudioDeviceID>.size)
+
+    let status = AudioObjectGetPropertyData(
+        AudioObjectID(kAudioObjectSystemObject),
+        &address,
+        0,
+        nil,
+        &size,
+        &deviceID
+    )
+
+    guard status == noErr else {
+        return nil
+    }
+
+    return makeDevice(deviceID)
+}
+
 static func findIntercomRoute(
     _ endpoints: [BluetoothEndpoint]
 ) -> IntercomRoute? {
@@ -290,21 +335,14 @@ static func findIntercomRoute(
         return nil
     }
 
-    let devices = enumerateDevices()
+guard let selectedInput = defaultInputDevice() else {
+    return nil
+}
 
-    guard let builtInMic = devices.first(
-        where: {
-            $0.transport == "Built-in"
-            && $0.inputChannels > 0
-        }
-    ) else {
-        return nil
-    }
-
-    return IntercomRoute(
-        input: builtInMic,
-        output: bluetooth.output!
-    )
+return IntercomRoute(
+    input: selectedInput,
+    output: bluetooth.output!
+)
 }
 
 static func bluetoothToComputerRoute() -> IntercomRoute? {
@@ -341,21 +379,14 @@ static func computerToBluetoothRoute() -> IntercomRoute? {
         return nil
     }
 
-    let devices = enumerateDevices()
+guard let input = defaultInputDevice() else {
+    return nil
+}
 
-    guard let computerMic = devices.first(
-        where: {
-            $0.transport == "Built-in"
-            && $0.inputChannels > 0
-        }
-    ) else {
-        return nil
-    }
-
-    return IntercomRoute(
-        input: computerMic,
-        output: bluetooth.output!
-    )
+return IntercomRoute(
+    input: input,
+    output: bluetooth.output!
+)
 }
 
 static func groupBluetoothEndpoints(

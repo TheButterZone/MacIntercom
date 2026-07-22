@@ -1,3 +1,22 @@
+//
+// MacIntercom
+// Copyright (C) 2026 TheButterZone
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see:
+// https://www.gnu.org/licenses/
+//
+
 import Foundation
 import CoreAudio
 
@@ -10,6 +29,9 @@ final class AudioCapture {
 
     private var currentGain: Float = 1.0
     private var smoothedPeak: Float = 0.05
+
+    var position: Float = 0
+    private var downsamplePosition: Float = 0
 
     private var processCount = 0
     private var callbackCount = 0
@@ -325,11 +347,14 @@ queue=\(self.audioBuffer.sampleCount())
 
 if self.shouldDownsample {
 
-let mono8k = self.downsampleTo8kMono(
-    capturedSamples
-)
+    let channels = Int(bufferList[0].mNumberChannels)
 
-let leveled = applyAutomaticGain(mono8k)
+    let mono8k = self.downsampleTo8kMono(
+        capturedSamples,
+        channels: channels
+    )
+
+    let leveled = applyAutomaticGain(mono8k)
 
 if self.callbackCount % 100 == 0 {
     DebugTelemetry.capture.log(
@@ -387,29 +412,57 @@ self.audioBuffer.write(
 
 } else {
 
-let mono44100 = self.resampleToOutputStereo(
-    capturedSamples
-)
+    let channels = Int(bufferList[0].mNumberChannels)
+    let monoInputSamples: [Float]
 
-var peak: Float = 0
+    if channels == 2 {
+        var extractedMono = [Float]()
+        extractedMono.reserveCapacity(capturedSamples.count / 2)
 
-for sample in mono44100 {
-    peak = max(peak, abs(sample))
-}
+        for i in stride(from: 0, to: capturedSamples.count - 1, by: 2) {
+            let left = capturedSamples[i]
+            let right = capturedSamples[i + 1]
 
-if callbackCount % 100 == 0 {
+            let leftLevel = abs(left)
+            let rightLevel = abs(right)
 
-    DebugTelemetry.output.log(
-        """
-BTOC
-peak=\(peak)
-samples=\(mono44100.count)
-queue=\(self.audioBuffer.sampleCount())
-"""
+            // Smart extraction: grab the channel that actually has the signal
+            if leftLevel > rightLevel * 2 {
+                extractedMono.append(left)
+            } else if rightLevel > leftLevel * 2 {
+                extractedMono.append(right)
+            } else {
+                extractedMono.append((left + right) * 0.5)
+            }
+        }
+        monoInputSamples = extractedMono
+    } else {
+        monoInputSamples = capturedSamples
+    }
+
+    let mono44100 = self.resampleToOutputStereo(
+        monoInputSamples
     )
-}
 
-let leveled = applyAutomaticGain(mono44100)
+    var peak: Float = 0
+
+    for sample in mono44100 {
+        peak = max(peak, abs(sample))
+    }
+
+    if callbackCount % 100 == 0 {
+
+        DebugTelemetry.output.log(
+            """
+            BTOC
+            peak=\(peak)
+            samples=\(mono44100.count)
+            queue=\(self.audioBuffer.sampleCount())
+            """
+        )
+    }
+
+    let leveled = applyAutomaticGain(mono44100)
 
 if self.callbackCount % 100 == 0 {
     DebugTelemetry.capture.log(
@@ -458,125 +511,124 @@ if self.callbackCount % 100 == 0 {
     }
 }
 
-private func applyAutomaticGain(
-    _ samples: [Float]
-) -> [Float] {
+    private func applyAutomaticGain(
+        _ samples: [Float]
+    ) -> [Float] {
 
-    var output = samples
+	var output = samples
 
     // Find the loudest sample in this buffer.
-    var bufferPeak: Float = 0
-
-    for sample in output {
-        bufferPeak = max(bufferPeak, abs(sample))
-    }
+	var bufferPeak: Float = 0
+	    for sample in output {
+	    bufferPeak = max(bufferPeak, abs(sample))
+	}
 
     // Update the envelope once per buffer.
-    smoothedPeak =
-        smoothedPeak * 0.95 +
-        bufferPeak * 0.05
+	smoothedPeak =
+	    smoothedPeak * 0.95 +
+	    bufferPeak * 0.05
 
-let targetLevel: Float = 0.35
-let minimumSignalLevel: Float = 0.02
+    // Lowered from 0.95 to a comfortable listening volume
+	let targetLevel: Float = 0.65 
+    
+    // A middle ground: low enough to catch the Mixer, high enough to ignore USB silence
+	let minimumSignalLevel: Float = 0.005 
 
-var targetGain: Float
+	var targetGain: Float
 
-if smoothedPeak > minimumSignalLevel {
+	if smoothedPeak > minimumSignalLevel {
+	    targetGain = targetLevel / smoothedPeak
+	} else {
+	// If it falls below the minimum signal (true silence), fade back to no boost
+	    targetGain = 1.0
+	}
 
-    targetGain =
-        targetLevel / smoothedPeak
+    // Capped at 30x boost. 100x is too aggressive for standard digital mics.
+	targetGain = min(targetGain, 30.0) 
 
-} else {
+	// ASYMMETRIC ATTACK/RELEASE
+	if targetGain < currentGain {
+	// FAST ATTACK: Signal suddenly got loud. Drop gain rapidly (20% per buffer) to prevent clipping/fuzziness.
+	    currentGain += (targetGain - currentGain) * 0.20
+	} else {
+        // SLOW RELEASE: Signal is quiet. Raise gain slowly (1% per buffer) so room noise doesn't pump.
+	    currentGain += (targetGain - currentGain) * 0.01
+	}
 
-    targetGain = max(
-        1.0,
-        currentGain * 0.999
-    )
-}
+    // Slightly safer hard ceiling
+	let maxOutput: Float = 0.95 
 
-targetGain = min(
-    targetGain,
-    20.0
-)
+        for i in 0..<output.count {
+            var sample = output[i] * currentGain
+            // Hard clipper
+            sample = max(-maxOutput, min(maxOutput, sample))
+            output[i] = sample
+        }
 
-    currentGain +=
-        (targetGain - currentGain) * 0.01
-
-    let maxOutput: Float = 0.8
-
-    for i in 0..<output.count {
-
-        var sample =
-            output[i] * currentGain
-
-        sample = max(
-            -maxOutput,
-            min(
-                maxOutput,
-                sample
-            )
-        )
-
-        output[i] = sample
+        return output
     }
 
-    return output
-}
-
 private func downsampleTo8kMono(
-    _ samples: [Float]
+    _ samples: [Float],
+    channels: Int
 ) -> [Float] {
 
-let inputRate = Float(device.sampleRate)
-let outputRate: Float = 8000
+    let inputRate = Float(device.sampleRate)
+    let outputRate: Float = 8000
 
     let step = inputRate / outputRate
 
     var output: [Float] = []
 
-    var position: Float = 0
+    // Continue from the previous callback instead of restarting at 0.
+    var position = downsamplePosition
 
-    let frameCount = samples.count / 2
+    // Dynamically set frame count based on actual channels
+    let frameCount = samples.count / channels 
 
     while Int(position) + 1 < frameCount {
 
         let frame = Int(position)
-
         let fraction = position - Float(frame)
+        let mono: Float
 
-        let left0 = samples[frame * 2]
-        let left1 = samples[(frame + 1) * 2]
+        if channels == 2 {
+            let left0 = samples[frame * 2]
+            let left1 = samples[(frame + 1) * 2]
 
-        let right0 = samples[frame * 2 + 1]
-        let right1 = samples[(frame + 1) * 2 + 1]
+            let right0 = samples[frame * 2 + 1]
+            let right1 = samples[(frame + 1) * 2 + 1]
 
-        let left =
-            left0 + (left1 - left0) * fraction
+            let left = left0 + (left1 - left0) * fraction
+            let right = right0 + (right1 - right0) * fraction
 
-        let right =
-            right0 + (right1 - right0) * fraction
+            let leftLevel = abs(left)
+            let rightLevel = abs(right)
 
-let mono: Float
+            if leftLevel > rightLevel * 2 {
+                mono = left
+            } else if rightLevel > leftLevel * 2 {
+                mono = right
+            } else {
+                mono = (left + right) * 0.5
+            }
+        } else {
+            // Mono parsing
+            let val0 = samples[frame]
+            let val1 = samples[frame + 1]
+            mono = val0 + (val1 - val0) * fraction
+        }
 
-let leftLevel = abs(left)
-let rightLevel = abs(right)
-
-if leftLevel > rightLevel * 2 {
-    mono = left
-}
-else if rightLevel > leftLevel * 2 {
-    mono = right
-}
-else {
-    mono = (left + right) * 0.5
-}
-
-output.append(
-    max(-1.0, min(1.0, mono))
-)
+        output.append(
+            max(-1.0, min(1.0, mono))
+        )
 
         position += step
     }
+
+    // Preserve the fractional resampler phase for the next callback.
+    position -= Float(frameCount)
+    downsamplePosition = max(0, position)
 
     return output
 }
