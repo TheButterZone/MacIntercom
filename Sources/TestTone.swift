@@ -1,3 +1,22 @@
+//
+// MacIntercom
+// Copyright (C) 2026 TheButterZone
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see:
+// https://www.gnu.org/licenses/
+//
+
 import Foundation
 
 final class TestTone {
@@ -16,21 +35,21 @@ final class TestTone {
         self.amplitude = amplitude
     }
 
-func logConfiguration(name: String) {
+    func logConfiguration(name: String) {
 
-    guard DebugFlags.generateTestTone else {
-        return
+        guard DebugFlags.generateTestTone else {
+            return
+        }
+
+        Logger.info(
+            """
+            🎵 TEST TONE INIT
+            device=🔊 \(name)
+            frequency=\(frequency)
+            amplitude=\(amplitude)
+            """
+        )
     }
-
-    Logger.info(
-        """
-        🎵 TEST TONE INIT
-        device=🔊 \(name)
-        frequency=\(frequency)
-        amplitude=\(amplitude)
-        """
-    )
-}
 
     func fill(
         _ samples: UnsafeMutablePointer<Float>,
@@ -79,8 +98,7 @@ func logConfiguration(name: String) {
             }
         }
 
-        if DebugFlags.showPerformanceStats &&
-           callbackCount % 100 == 0 {
+        if DebugFlags.showPerformanceStats && callbackCount % 100 == 0 {
 
             DebugTelemetry.output.log(
                 """

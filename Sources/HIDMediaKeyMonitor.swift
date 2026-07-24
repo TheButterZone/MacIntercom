@@ -1,3 +1,22 @@
+//
+// MacIntercom
+// Copyright (C) 2026 TheButterZone
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see:
+// https://www.gnu.org/licenses/
+//
+
 import Foundation
 import IOKit.hid
 
@@ -6,7 +25,6 @@ final class HIDMediaKeyMonitor {
     private var manager: IOHIDManager?
 
     func start() {
-        // Respect the app's debug flags
         if !DebugFlags.bluetoothDebug {
             return
         }
@@ -46,31 +64,37 @@ final class HIDMediaKeyMonitor {
         var bluetoothCount = 0
 
         for device in deviceSet {
-            let transport = IOHIDDeviceGetProperty(
-                device,
-                kIOHIDTransportKey as CFString
-            ) as? String ?? "Unknown"
-            
+            let transport =
+                IOHIDDeviceGetProperty(
+                    device,
+                    kIOHIDTransportKey as CFString
+                ) as? String ?? "Unknown"
+
             // Filter out internal Apple trackpads, keyboards, etc.
-            let isBluetooth = transport.lowercased().contains("bluetooth") || transport.lowercased().contains("bt")
+            let isBluetooth =
+                transport.lowercased().contains("bluetooth")
+                || transport.lowercased().contains("bt")
             guard isBluetooth else { continue }
-            
+
             bluetoothCount += 1
 
-            let manufacturer = IOHIDDeviceGetProperty(
-                device,
-                kIOHIDManufacturerKey as CFString
-            ) as? String ?? "?"
+            let manufacturer =
+                IOHIDDeviceGetProperty(
+                    device,
+                    kIOHIDManufacturerKey as CFString
+                ) as? String ?? "?"
 
-            let product = IOHIDDeviceGetProperty(
-                device,
-                kIOHIDProductKey as CFString
-            ) as? String ?? "?"
-            
-            let usagePage = IOHIDDeviceGetProperty(
-                device,
-                kIOHIDPrimaryUsagePageKey as CFString
-            ) as? Int ?? 0
+            let product =
+                IOHIDDeviceGetProperty(
+                    device,
+                    kIOHIDProductKey as CFString
+                ) as? String ?? "?"
+
+            let usagePage =
+                IOHIDDeviceGetProperty(
+                    device,
+                    kIOHIDPrimaryUsagePageKey as CFString
+                ) as? Int ?? 0
 
             let usageDescription = describeUsagePage(usagePage)
 
@@ -78,10 +102,10 @@ final class HIDMediaKeyMonitor {
                 "BT HID: \(manufacturer) / \(product) | Transport: \(transport) | Page: 0x\(String(usagePage, radix: 16, uppercase: true)) (\(usageDescription))"
             )
         }
-        
+
         Logger.media("Total Bluetooth HID devices found: \(bluetoothCount)")
     }
-    
+
     private func describeUsagePage(_ page: Int) -> String {
         switch page {
         case 0x01: return "Generic Desktop"

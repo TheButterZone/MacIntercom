@@ -17,24 +17,34 @@
 // https://www.gnu.org/licenses/
 //
 
+import AVFoundation
+import AppKit
 import Foundation
 
-let mediaKeyMonitor = MediaKeyMonitor()
-let bluetoothMonitor = BluetoothMonitor()
+let app = NSApplication.shared
+app.setActivationPolicy(.accessory)
 
-guard let bluetoothRoute =
-    AudioInspector.bluetoothToComputerRoute()
-else {
+AVCaptureDevice.requestAccess(for: .audio) { granted in
+    if granted {
+        Logger.info("Microphone access granted.")
+    } else {
+        Logger.error(
+            "Grant microphone access to Terminal in your Mac's system settings (under Privacy & Security > Microphone)."
+        )
+    }
+}
+
+guard let bluetoothRoute = AudioInspector.bluetoothToComputerRoute() else {
     Logger.error("No Bluetooth → Computer route")
     exit(1)
 }
 
-guard let computerRoute =
-    AudioInspector.computerToBluetoothRoute()
-else {
+guard let computerRoute = AudioInspector.computerToBluetoothRoute() else {
     Logger.error("No Computer → Bluetooth route")
     exit(1)
 }
+
+DebugTelemetry.shared.start()
 
 DebugTelemetry.capture.log(
     """
@@ -46,27 +56,14 @@ DebugTelemetry.capture.log(
     """
 )
 
-print("MacIntercom v0.1.1 — Copyright (C) 2026 TheButterZone")
+print("MacIntercom v0.1.3 — Copyright (C) 2026 TheButterZone")
 print("This program comes with ABSOLUTELY NO WARRANTY.")
 print("This is free software under the GPLv3; see the LICENSE file for details.\n")
 
-Logger.info("MacIntercom running, audio routes initialized:")
-
-AudioInspector.printBufferFrameSize(
-    bluetoothRoute.input
-)
-
-AudioInspector.printBufferFrameSize(
-    bluetoothRoute.output
-)
-
-AudioInspector.printBufferFrameSize(
-    computerRoute.input
-)
-
-AudioInspector.printBufferFrameSize(
-    computerRoute.output
-)
+AudioInspector.printBufferFrameSize(bluetoothRoute.input)
+AudioInspector.printBufferFrameSize(bluetoothRoute.output)
+AudioInspector.printBufferFrameSize(computerRoute.input)
+AudioInspector.printBufferFrameSize(computerRoute.output)
 
 let computerToBluetooth = IntercomEngine(
     name: "Computer→BT",
@@ -82,65 +79,53 @@ let bluetoothToComputer = IntercomEngine(
     primeBuffer: true
 )
 
-if DebugFlags.generateTestTone {
+let mediaRemoteObserver = MediaRemoteObserver.shared
+mediaRemoteObserver.start()
 
-    Logger.info("🎵 TEST TONE MODE: starting both engines")
+let mediaKeyMonitor = MediaKeyMonitor()
+mediaKeyMonitor.start()
 
-    computerToBluetooth.start()
-    bluetoothToComputer.start()
+let bluetoothMonitor = BluetoothMonitor()
+bluetoothMonitor.start()
 
-} else {
-
-    computerToBluetooth.capture.onFirstCallback = {
-
-DebugTelemetry.capture.log(
-    "Computer capture active -> starting Bluetooth engine"
-)
-
-        bluetoothToComputer.start()
-    }
-
-    computerToBluetooth.start()
+let conversationController = ConversationController()
+conversationController.onMuteStateChanged = { isMuted in
+    computerToBluetooth.isMuted = isMuted
+    bluetoothToComputer.isMuted = isMuted
 }
 
+conversationController.syncInitialState()
+
+MediaKeyInterceptor.shared.conversationController = conversationController
+MediaKeyInterceptor.shared.startIntercepting()
+
+if DebugFlags.generateTestTone {
+    Logger.info("🎵 TEST TONE MODE: starting both engines")
+}
+
+let engineStartupGroup = DispatchGroup()
+
+engineStartupGroup.enter()
+computerToBluetooth.capture.onFirstCallback = {
+    DebugTelemetry.capture.log("Computer capture active")
+    engineStartupGroup.leave()
+}
+
+engineStartupGroup.enter()
 bluetoothToComputer.capture.onFirstCallback = {
-
-DebugTelemetry.capture.log(
-    "Bluetooth capture active"
-)
-
+    DebugTelemetry.capture.log("Bluetooth capture active")
+    engineStartupGroup.leave()
 }
 
 computerToBluetooth.start()
+bluetoothToComputer.start()
 
-DebugTelemetry.shared.start()
+DispatchQueue.global().async {
+    _ = engineStartupGroup.wait(timeout: .now() + 3.0)
+}
 
-mediaKeyMonitor.start()
-bluetoothMonitor.start()
+if !DebugFlags.generateTestTone {
+    Logger.info("MacIntercom running. Waiting for Bluetooth AVRCP events.")
+}
 
-//MediaRemoteObserver.shared.start()
-
-//let conversationController =
-//    ConversationController()
-
-//DispatchQueue.main.asyncAfter(deadline: .now() + 5) {
-//
-//    Logger.info("TEST: Begin conversation")
-//
-//    conversationController.begin(
-//        trigger: .app
-//    )
-//
-//}
-//
-//DispatchQueue.main.asyncAfter(deadline: .now() + 10) {
-//
-//    Logger.info("TEST: End conversation")
-//
-//    conversationController.end(
-//        trigger: .app
-//    )
-//
-//}
-
-RunLoop.main.run()
+app.run()

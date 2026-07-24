@@ -1,112 +1,113 @@
+//
+// MacIntercom
+// Copyright (C) 2026 TheButterZone
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see:
+// https://www.gnu.org/licenses/
+//
+
 import Foundation
 
 final class ConversationController {
 
     enum Trigger {
         case bluetoothButton
-        case vox
         case app
     }
 
     private(set) var state: ConversationState = .idle {
-
         didSet {
-
             guard state != oldValue else {
                 return
             }
 
-            Logger.info(
+            DebugTelemetry.capture.log(
                 "Conversation state: \(oldValue) → \(state)"
             )
 
             onStateChanged?(state)
-
         }
-
     }
 
     var onStateChanged: ((ConversationState) -> Void)?
-
-    private var playbackWasActive = false
+    var onMuteStateChanged: ((Bool) -> Void)?
 
     init() {
+        guard !DebugFlags.generateTestTone else { return }
 
-        MediaPlaybackState.shared.onPlaybackChanged = { [weak self] playing in
-
+        MediaPlaybackState.shared.onPlaybackChanged = {
+            [weak self] playing in
             self?.playbackChanged(playing)
-
         }
-
     }
 
-    private func playbackChanged(_ playing: Bool) {
+    func syncInitialState() {
+        guard !DebugFlags.generateTestTone else { return }
 
+        let isPlaying = MediaPlaybackState.shared.isPlaying
+        
         Logger.info(
-            "Playback changed: \(playing ? "ACTIVE" : "INACTIVE")"
+            "Initial playback state on run: \(isPlaying ? "PLAYING" : "PAUSED")"
         )
 
+        applyMuteState(isPlaying)
     }
 
-    func begin(trigger: Trigger) {
+    private func playbackChanged(
+        _ playing: Bool
+    ) {
+        DebugTelemetry.capture.log("Playback changed: \(playing ? "ACTIVE" : "INACTIVE")")
 
-        guard state == .idle else {
-            return
-        }
-
-        playbackWasActive =
-            MediaPlaybackState.shared.isPlaying
-
-        Logger.info(
-            "Playback before conversation: \(playbackWasActive)"
-        )
-
-        state = .starting
-
-        state = .active
-
+        applyMuteState(playing)
     }
 
-    func end(trigger: Trigger) {
+    private func applyMuteState(
+        _ isPlaying: Bool
+    ) {
+        guard !DebugFlags.generateTestTone else { return }
 
-        guard state == .active else {
-            return
-        }
-
-        state = .ending
-
-        if playbackWasActive {
-
+        if isPlaying {
             Logger.info(
-                "Playback had been active before conversation."
+                "Media is playing → Muting intercom audio buffers."
             )
-
+            onMuteStateChanged?(true)  // Mute / 0-buffer
+            state = .idle
+        } else {
+            Logger.info(
+                "Media is paused → Unmuting intercom audio buffers."
+            )
+            onMuteStateChanged?(false)  // Unmute
+            state = .active
         }
-
-        playbackWasActive = false
-
-        state = .idle
-
     }
 
-    func toggle(trigger: Trigger) {
-
-        switch state {
-
-        case .idle:
-
-            begin(trigger: trigger)
-
-        case .active:
-
-            end(trigger: trigger)
-
-        default:
-
-            break
-
-        }
-
+    func begin(
+        trigger: Trigger
+    ) {
+        applyMuteState(false)
     }
 
+    func end(
+        trigger: Trigger
+    ) {
+        applyMuteState(true)
+    }
+
+    func toggle(
+        trigger: Trigger
+    ) {
+        let currentPlaying = MediaPlaybackState.shared.isPlaying
+        applyMuteState(!currentPlaying)
+    }
 }

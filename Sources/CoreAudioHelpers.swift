@@ -1,5 +1,5 @@
-import Foundation
 import CoreAudio
+import Foundation
 
 enum CoreAudioHelpers {
 

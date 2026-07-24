@@ -30,6 +30,18 @@ final class IntercomEngine {
 
     private var started = false
 
+    var isMuted: Bool = false {
+        didSet {
+            guard isMuted != oldValue else { return }
+
+            DebugTelemetry.capture.log(
+                "ENGINE MUTE STATE CHANGED: \(isMuted) (Engine: \(capture.device.name))"
+            )
+
+            capture.isMuted = isMuted
+        }
+    }
+
     init(
         name: String,
         route: IntercomRoute,
@@ -64,70 +76,69 @@ final class IntercomEngine {
             device: route.output,
             audioBuffer: buffer
         )
-    }
 
+        capture.isMuted = self.isMuted
+    }
 
     func start() {
 
         if started {
 
-DebugTelemetry.capture.log(
-    """
-    ENGINE ALREADY STARTED
-    output=\(output.device.name)
-    """
-)
+            DebugTelemetry.capture.log(
+                """
+                ENGINE ALREADY STARTED
+                output=\(output.device.name)
+                """
+            )
 
             return
         }
 
         started = true
 
-Logger.info(
-    "Intercom  🎤 \(capture.device.name) → 🔊 \(output.device.name)  🎵 tone=\(DebugFlags.generateTestTone)"
-)
-
-
         if DebugFlags.generateTestTone {
 
-Logger.info(
-    "🎵 Tone test  🔊 \(output.device.name)"
-)
+            Logger.info(
+                "🎵 Tone test  🔊 \(output.device.name)"
+            )
 
             output.start()
             return
         }
 
-
         capture.start()
 
-
         if primeBuffer {
-
             DispatchQueue.global(qos: .userInitiated).async {
-
                 let targetSamples = 512
 
                 while self.buffer.sampleCount() < targetSamples {
                     usleep(10_000)
                 }
 
-DebugTelemetry.capture.log(
-    """
-    AUDIO FLOW START
-    output=\(self.output.device.name)
-    queued=\(self.buffer.sampleCount())
-    """
-)
+                Logger.info(
+                    "Audio route initialized:  🎤 \(self.capture.device.name) → 🔊 \(self.output.device.name)  🎵 tone=\(DebugFlags.generateTestTone)"
+                )
 
-Logger.info(
-    "🔄  Audio flowing  🎤 \(self.capture.device.name) → 🔊 \(self.output.device.name)"
-)
+                DebugTelemetry.capture.log(
+                    """
+                    AUDIO FLOW START
+                    output=\(self.output.device.name)
+                    queued=\(self.buffer.sampleCount())
+                    """
+                )
+
+                Logger.info(
+                    "🔄  Audio flowing  🎤 \(self.capture.device.name) → 🔊 \(self.output.device.name)"
+                )
 
                 self.output.start()
             }
 
         } else {
+            Logger.info(
+                "Audio route initialized:  🎤 \(capture.device.name) → 🔊 \(output.device.name)  🎵 tone=\(DebugFlags.generateTestTone)"
+            )
 
             output.start()
 

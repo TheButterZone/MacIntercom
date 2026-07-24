@@ -1,3 +1,22 @@
+//
+// MacIntercom
+// Copyright (C) 2026 TheButterZone
+//
+// This program is free software: you can redistribute it and/or modify
+// it under the terms of the GNU General Public License as published by
+// the Free Software Foundation, either version 3 of the License, or
+// (at your option) any later version.
+//
+// This program is distributed in the hope that it will be useful,
+// but WITHOUT ANY WARRANTY; without even the implied warranty of
+// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+// See the GNU General Public License for more details.
+//
+// You should have received a copy of the GNU General Public License
+// along with this program. If not, see:
+// https://www.gnu.org/licenses/
+//
+
 import Foundation
 
 final class AudioBuffer {
@@ -49,76 +68,75 @@ final class AudioBuffer {
         }
     }
 
-func write(_ newSamples: [Float]) {
+    func write(_ newSamples: [Float]) {
 
-    lock.lock()
+        lock.lock()
 
-    samples.append(contentsOf: newSamples)
+        samples.append(contentsOf: newSamples)
 
-    let queued = samples.count - readIndex
+        let queued = samples.count - readIndex
 
-if queued > maxQueued {
+        if queued > maxQueued {
 
-    overflowCount += 1
+            overflowCount += 1
 
-    if overflowCount % 100 == 1 {
+            if overflowCount % 100 == 1 {
 
-        DebugTelemetry.buffer.log(
-            """
-            BUFFER OVERFLOW
-            name=\(name)
-            queued=\(queued)
-            limit=\(maxQueued)
-            count=\(overflowCount)
-            """
+                DebugTelemetry.buffer.log(
+                    """
+                    BUFFER OVERFLOW
+                    name=\(name)
+                    queued=\(queued)
+                    limit=\(maxQueued)
+                    count=\(overflowCount)
+                    """
+                )
+            }
+
+            readIndex = samples.count - maxQueued
+        }
+
+        totalWritten += newSamples.count
+        writtenThisSecond += newSamples.count
+
+        lock.unlock()
+    }
+
+    func read(count: Int) -> [Float] {
+
+        lock.lock()
+        defer { lock.unlock() }
+
+        let available = samples.count - readIndex
+
+        let actual = min(count, available)
+
+        let start = readIndex
+        let end = start + actual
+
+        let output = Array(
+            samples[start..<end]
         )
+
+        readIndex += actual
+
+        readThisSecond += output.count
+        totalRead += output.count
+
+        if readIndex > 4096 && readIndex > samples.count / 2 {
+
+            samples.removeFirst(readIndex)
+            readIndex = 0
+        }
+
+        return output
     }
 
-    readIndex = samples.count - maxQueued
-}
+    func sampleCount() -> Int {
 
-    totalWritten += newSamples.count
-    writtenThisSecond += newSamples.count
+        lock.lock()
+        defer { lock.unlock() }
 
-    lock.unlock()
-}
-
-func read(count: Int) -> [Float] {
-
-    lock.lock()
-    defer { lock.unlock() }
-
-    let available = samples.count - readIndex
-
-    let actual = min(count, available)
-
-    let start = readIndex
-    let end = start + actual
-
-    let output = Array(
-        samples[start..<end]
-    )
-
-    readIndex += actual
-
-    readThisSecond += output.count
-    totalRead += output.count
-
-    if readIndex > 4096 &&
-       readIndex > samples.count / 2 {
-
-        samples.removeFirst(readIndex)
-        readIndex = 0
+        return samples.count - readIndex
     }
-
-    return output
-}
-
-func sampleCount() -> Int {
-
-    lock.lock()
-    defer { lock.unlock() }
-
-    return samples.count - readIndex
-}
 }

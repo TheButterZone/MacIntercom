@@ -17,37 +17,34 @@
 // https://www.gnu.org/licenses/
 //
 
-import AppKit
+import Foundation
+import MediaPlayer
 
-final class MediaKeyMonitor {
+final class MediaKeyInterceptor {
 
-    private var appKitMonitor: Any?
-    private var hidMonitor: HIDMediaKeyMonitor?
+    static let shared = MediaKeyInterceptor()
 
-    func start() {
+    weak var conversationController: ConversationController?
 
-        startAppKit()
+    private init() {}
 
-        hidMonitor = HIDMediaKeyMonitor()
-        hidMonitor?.start()
-    }
+    func startIntercepting() {
+        let commandCenter = MPRemoteCommandCenter.shared()
 
-    private func startAppKit() {
+        commandCenter.nextTrackCommand.isEnabled = false
+        commandCenter.previousTrackCommand.isEnabled = false
 
-        appKitMonitor = NSEvent.addGlobalMonitorForEvents(
-            matching: .systemDefined
-        ) { event in
+        commandCenter.togglePlayPauseCommand.isEnabled = true
 
-            Logger.media(
-                "AppKit systemDefined subtype=\(event.subtype.rawValue) data1=\(event.data1)"
+        commandCenter.togglePlayPauseCommand.addTarget { [weak self] _ in
+
+            Logger.info("Bluetooth AVRCP toggle")
+
+            self?.conversationController?.toggle(
+                trigger: .bluetoothButton
             )
-        }
-    }
 
-    deinit {
-
-        if let monitor = appKitMonitor {
-            NSEvent.removeMonitor(monitor)
+            return .success
         }
     }
 }
