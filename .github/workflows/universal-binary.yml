@@ -1,0 +1,37 @@
+name: Build and Release Universal Binary
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release:
+    name: Build & Publish macOS Release
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout Source Code
+        uses: actions/checkout@v7
+
+      - name: Build Universal Binary (Apple Silicon & Intel)
+        run: |
+          swiftc $(find . -name "*.swift") -target arm64-apple-macosx11.0 -O -o macintercom-arm64
+          swiftc $(find . -name "*.swift") -target x86_64-apple-macosx10.15 -O -o macintercom-x86_64
+          lipo -create -output macintercom macintercom-arm64 macintercom-x86_64
+          lipo -info ./macintercom
+
+      - name: Zip Binary (Preserves Executable Permissions)
+        run: |
+          zip macintercom-macos-universal-${{ github.ref_name }}.zip macintercom
+
+      - name: Create GitHub Release and Upload Binary
+        uses: softprops/action-gh-release@v2
+        with:
+          files: macintercom-macos-universal-${{ github.ref_name }}.zip
+          generate_release_notes: true
+          fail_on_unmatched_files: true
