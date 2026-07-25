@@ -26,7 +26,6 @@ jobs:
       - name: Determine Version Tag
         id: vars
         run: |
-          # Use manual input if triggered via workflow_dispatch, otherwise use the git tag
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
             echo "TAG=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
           else
@@ -44,10 +43,16 @@ jobs:
         run: |
           zip macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip macintercom
 
-      - name: Create GitHub Release and Upload Binary
-        uses: softprops/action-gh-release@v2
+      - name: Generate SHA256 Checksum
+        run: |
+          shasum -a 256 macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip > macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip.sha256
+
+      - name: Create GitHub Release and Upload Assets
+        uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.vars.outputs.TAG }}
-          files: macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip
+          files: |
+            macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip
+            macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip.sha256
           generate_release_notes: true
           fail_on_unmatched_files: true
