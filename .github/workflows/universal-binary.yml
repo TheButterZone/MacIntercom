@@ -5,6 +5,11 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag to release (e.g. v0.1.4)'
+        required: true
+        default: 'v0.1.4'
 
 permissions:
   contents: write
@@ -18,6 +23,16 @@ jobs:
       - name: Checkout Source Code
         uses: actions/checkout@v7
 
+      - name: Determine Version Tag
+        id: vars
+        run: |
+          # Use manual input if triggered via workflow_dispatch, otherwise use the git tag
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            echo "TAG=${{ github.event.inputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Build Universal Binary (Apple Silicon & Intel)
         run: |
           swiftc $(find . -name "*.swift") -target arm64-apple-macosx11.0 -O -o macintercom-arm64
@@ -27,11 +42,12 @@ jobs:
 
       - name: Zip Binary (Preserves Executable Permissions)
         run: |
-          zip macintercom-macos-universal-${{ github.ref_name }}.zip macintercom
+          zip macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip macintercom
 
       - name: Create GitHub Release and Upload Binary
         uses: softprops/action-gh-release@v2
         with:
-          files: macintercom-macos-universal-${{ github.ref_name }}.zip
+          tag_name: ${{ steps.vars.outputs.TAG }}
+          files: macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip
           generate_release_notes: true
           fail_on_unmatched_files: true
