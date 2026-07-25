@@ -27,7 +27,7 @@ final class MediaRemoteObserver {
     private var frameworkHandle: UnsafeMutableRawPointer?
 
     private typealias IsPlayingBlock =
-        @convention(block) (Bool) -> Void
+        @convention(block) (UInt8) -> Void
 
     private typealias GetIsPlaying =
         @convention(c)
@@ -68,9 +68,9 @@ final class MediaRemoteObserver {
 
         let semaphore = DispatchSemaphore(value: 0)
 
-        getIsPlaying?(DispatchQueue.global()) { playing in
+	getIsPlaying?(DispatchQueue.global()) { playingByte in
             MediaPlaybackState.shared.update(
-                playing: playing,
+                playing: playingByte != 0,
                 title: nil,
                 artist: nil
             )
@@ -93,10 +93,10 @@ final class MediaRemoteObserver {
             return
         }
 
-        getIsPlaying(.main) { playing in
+        getIsPlaying(.main) { playingByte in
 
             MediaPlaybackState.shared.update(
-                playing: playing,
+                playing: playingByte != 0,
                 title: nil,
                 artist: nil
             )

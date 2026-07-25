@@ -99,17 +99,19 @@ struct AudioInspector {
             scope: kAudioObjectPropertyScopeGlobal
         )
 
-        var name: CFString = "" as CFString
+	var name: CFString = "" as CFString
         var size = UInt32(MemoryLayout<CFString>.size)
 
-        let status = AudioObjectGetPropertyData(
-            deviceID,
-            &address,
-            0,
-            nil,
-            &size,
-            &name
-        )
+        let status = withUnsafeMutablePointer(to: &name) { namePtr in
+            AudioObjectGetPropertyData(
+                deviceID,
+                &address,
+                0,
+                nil,
+                &size,
+                namePtr
+            )
+        }
 
         if status != noErr {
             return "<error \(status)>"
@@ -125,17 +127,19 @@ struct AudioInspector {
             scope: kAudioObjectPropertyScopeGlobal
         )
 
-        var uid: CFString = "" as CFString
+	var uid: CFString = "" as CFString
         var size = UInt32(MemoryLayout<CFString>.size)
 
-        let status = AudioObjectGetPropertyData(
-            deviceID,
-            &address,
-            0,
-            nil,
-            &size,
-            &uid
-        )
+        let status = withUnsafeMutablePointer(to: &uid) { uidPtr in
+            AudioObjectGetPropertyData(
+                deviceID,
+                &address,
+                0,
+                nil,
+                &size,
+                uidPtr
+            )
+        }
 
         if status != noErr {
             return "<error \(status)>"
