@@ -45,7 +45,7 @@ jobs:
 
       - name: Generate SHA256 Checksum
         run: |
-          shasum -a 256 macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip > macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip.sha256
+          shasum -a 256 macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip > SHA256SUMS
 
       - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v3
@@ -53,6 +53,6 @@ jobs:
           tag_name: ${{ steps.vars.outputs.TAG }}
           files: |
             macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip
-            macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip.sha256
+            SHA256SUMS
           generate_release_notes: true
           fail_on_unmatched_files: true
