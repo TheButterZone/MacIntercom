@@ -96,7 +96,7 @@ final class IntercomEngine {
 
         started = true
 
-        if DebugFlags.generateTestTone {
+        if AppConfiguration.mode == .testTone {
 
             Logger.info(
                 "🎵 Tone test  🔊 \(output.device.name)"
@@ -117,7 +117,7 @@ final class IntercomEngine {
                 }
 
                 Logger.info(
-                    "Audio route initialized:  🎤 \(self.capture.device.name) → 🔊 \(self.output.device.name)  🎵 tone=\(DebugFlags.generateTestTone)"
+                    "Audio route initialized:  🎤 \(self.capture.device.name) → 🔊 \(self.output.device.name)  🎵 tone=\(AppConfiguration.mode == .testTone)"
                 )
 
                 DebugTelemetry.capture.log(
@@ -137,7 +137,7 @@ final class IntercomEngine {
 
         } else {
             Logger.info(
-                "Audio route initialized:  🎤 \(capture.device.name) → 🔊 \(output.device.name)  🎵 tone=\(DebugFlags.generateTestTone)"
+                "Audio route initialized:  🎤 \(capture.device.name) → 🔊 \(output.device.name)  🎵 tone=\(AppConfiguration.mode == .testTone)"
             )
 
             output.start()

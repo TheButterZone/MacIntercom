@@ -26,11 +26,4 @@ enum DebugFlags {
     static let bluetoothDebug = false
     static let audioTelemetry = true
 
-    // MARK: - Test tools
-
-    static let generateTestTone = false
-    static let computerOutputToneFrequency: Float = 220
-    static let bluetoothOutputToneFrequency: Float = 440
-    static let testToneAmplitude: Float = 0.25
-
 }

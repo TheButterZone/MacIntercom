@@ -20,9 +20,15 @@
 import AVFoundation
 import AppKit
 import Foundation
+import MediaPlayer
 
 let app = NSApplication.shared
 app.setActivationPolicy(.accessory)
+
+let commandCenter = MPRemoteCommandCenter.shared()
+commandCenter.playCommand.isEnabled = false
+commandCenter.pauseCommand.isEnabled = false
+commandCenter.togglePlayPauseCommand.isEnabled = false
 
 AVCaptureDevice.requestAccess(for: .audio) { granted in
     if granted {
@@ -32,6 +38,15 @@ AVCaptureDevice.requestAccess(for: .audio) { granted in
             "Grant microphone access to Terminal in your Mac's system settings (under Privacy & Security > Microphone)."
         )
     }
+}
+
+let arguments = CommandLine.arguments
+if arguments.contains("--t") || arguments.contains("--testtone") {
+    AppConfiguration.mode = .testTone
+} else if arguments.contains("--s") || arguments.contains("--standalone") {
+    AppConfiguration.mode = .standalone
+} else {
+    AppConfiguration.mode = .mediaAware
 }
 
 guard let bluetoothRoute = AudioInspector.bluetoothToComputerRoute() else {
@@ -56,7 +71,7 @@ DebugTelemetry.capture.log(
     """
 )
 
-print("MacIntercom v0.1.3 — Copyright (C) 2026 TheButterZone")
+print("MacIntercom v0.1.4 — Copyright (C) 2026 TheButterZone")
 print("This program comes with ABSOLUTELY NO WARRANTY.")
 print("This is free software under the GPLv3; see the LICENSE file for details.\n")
 
@@ -79,27 +94,41 @@ let bluetoothToComputer = IntercomEngine(
     primeBuffer: true
 )
 
-let mediaRemoteObserver = MediaRemoteObserver.shared
-mediaRemoteObserver.start()
-
-let mediaKeyMonitor = MediaKeyMonitor()
-mediaKeyMonitor.start()
-
 let bluetoothMonitor = BluetoothMonitor()
 bluetoothMonitor.start()
 
-let conversationController = ConversationController()
-conversationController.onMuteStateChanged = { isMuted in
-    computerToBluetooth.isMuted = isMuted
-    bluetoothToComputer.isMuted = isMuted
-}
+var conversationController: ConversationController?
+var mediaKeyMonitor: MediaKeyMonitor?
 
-conversationController.syncInitialState()
+switch AppConfiguration.mode {
+case .mediaAware:
+    let mediaRemoteObserver = MediaRemoteObserver.shared
+    mediaRemoteObserver.start()
 
-MediaKeyInterceptor.shared.conversationController = conversationController
-MediaKeyInterceptor.shared.startIntercepting()
+    mediaKeyMonitor = MediaKeyMonitor()
+    mediaKeyMonitor?.start()
 
-if DebugFlags.generateTestTone {
+    conversationController = ConversationController()
+    conversationController?.onMuteStateChanged = { isMuted in
+        computerToBluetooth.isMuted = isMuted
+        bluetoothToComputer.isMuted = isMuted
+    }
+
+    conversationController?.syncInitialState()
+
+    MediaKeyInterceptor.shared.conversationController = conversationController
+    MediaKeyInterceptor.shared.startIntercepting()
+
+case .standalone:
+    let mediaRemoteObserver = MediaRemoteObserver.shared
+    mediaRemoteObserver.start()
+    
+    computerToBluetooth.isMuted = false
+    bluetoothToComputer.isMuted = false
+
+case .testTone:
+    computerToBluetooth.isMuted = false
+    bluetoothToComputer.isMuted = false
     Logger.info("🎵 TEST TONE MODE: starting both engines")
 }
 
@@ -124,8 +153,29 @@ DispatchQueue.global().async {
     _ = engineStartupGroup.wait(timeout: .now() + 3.0)
 }
 
-if !DebugFlags.generateTestTone {
-    Logger.info("MacIntercom running. Waiting for Bluetooth AVRCP events.")
+switch AppConfiguration.mode {
+case .mediaAware:
+    Logger.info("""
+    MacIntercom running in MEDIA-AWARE mode.
+    
+    • Any Play/Pause button toggles the intercom off & on.
+    • Media playback will be automatically paused/resumed.
+    
+    To disable media integration, restart with:
+        ./macintercom --s
+    """)
+    
+case .standalone:
+    Logger.info("""
+    MacIntercom running in STANDALONE mode.
+    
+    • Intercom audio is always active.
+    • Media playback is ignored.
+    • Any Play/Pause button behaves normally.
+    """)
+    
+case .testTone:
+    break 
 }
 
 app.run()

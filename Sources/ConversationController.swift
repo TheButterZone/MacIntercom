@@ -44,8 +44,6 @@ final class ConversationController {
     var onMuteStateChanged: ((Bool) -> Void)?
 
     init() {
-        guard !DebugFlags.generateTestTone else { return }
-
         MediaPlaybackState.shared.onPlaybackChanged = {
             [weak self] playing in
             self?.playbackChanged(playing)
@@ -53,8 +51,7 @@ final class ConversationController {
     }
 
     func syncInitialState() {
-        guard !DebugFlags.generateTestTone else { return }
-
+        
         let isPlaying = MediaPlaybackState.shared.isPlaying
         
         Logger.info(
@@ -75,8 +72,7 @@ final class ConversationController {
     private func applyMuteState(
         _ isPlaying: Bool
     ) {
-        guard !DebugFlags.generateTestTone else { return }
-
+        
         if isPlaying {
             Logger.info(
                 "Media is playing → Muting intercom audio buffers."

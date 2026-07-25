@@ -41,8 +41,6 @@ final class MediaRemoteObserver {
     private init() {}
 
     func start() {
-        guard !DebugFlags.generateTestTone else { return }
-
         frameworkHandle = dlopen(
             "/System/Library/PrivateFrameworks/MediaRemote.framework/MediaRemote",
             RTLD_NOW

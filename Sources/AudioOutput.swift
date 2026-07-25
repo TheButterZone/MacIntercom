@@ -41,14 +41,14 @@ final class AudioOutput {
         let frequency: Float
 
         if device.transport == "Bluetooth" {
-            frequency = DebugFlags.bluetoothOutputToneFrequency
+            frequency = AppConfiguration.bluetoothOutputToneFrequency
         } else {
-            frequency = DebugFlags.computerOutputToneFrequency
+            frequency = AppConfiguration.computerOutputToneFrequency
         }
 
         self.testTone = TestTone(
             frequency: frequency,
-            amplitude: DebugFlags.testToneAmplitude
+            amplitude: AppConfiguration.testToneAmplitude
         )
 
         self.testTone.logConfiguration(
@@ -295,7 +295,7 @@ final class AudioOutput {
             let sampleCount =
                 Int(buffer.mDataByteSize) / MemoryLayout<Float>.size
 
-            if DebugFlags.generateTestTone {
+            if AppConfiguration.mode == .testTone {
 
                 testTone.fill(
                     samples,

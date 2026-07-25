@@ -37,7 +37,7 @@ final class TestTone {
 
     func logConfiguration(name: String) {
 
-        guard DebugFlags.generateTestTone else {
+	guard AppConfiguration.mode == .testTone else {
             return
         }
 

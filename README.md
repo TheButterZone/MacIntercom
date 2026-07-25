@@ -18,6 +18,12 @@ MacIntercom is currently distributed as source code and unsigned release binarie
 
 Because MacIntercom is not signed with an Apple Developer certificate, macOS may require manually approving the executable before first use.
 
+## Modes
+
+- Media-aware mode (default when running ./macintercom) — intercom automatically yields to media playback.
+- Standalone mode (run ./macintercom --s) intercom ignores media playback and stays active continuously until Ctrl-C.
+- Test tone mode (run ./macintercom --t) intercom simultaneously plays 220 Hz tone through computer output & 440 Hz tone through Bluetooth speaker.
+
 ## Roadmap
 
   - Dynamic hardware format adaptation
