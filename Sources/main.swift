@@ -120,8 +120,6 @@ case .mediaAware:
     MediaKeyInterceptor.shared.startIntercepting()
 
 case .standalone:
-    let mediaRemoteObserver = MediaRemoteObserver.shared
-    mediaRemoteObserver.start()
     
     computerToBluetooth.isMuted = false
     bluetoothToComputer.isMuted = false
