@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version tag to release (e.g. v0.1.4)'
+        description: 'Version tag to release'
         required: true
-        default: 'v0.1.4'
+        default: 'v0.1.5'
 
 permissions:
   contents: write
@@ -34,8 +34,8 @@ jobs:
 
       - name: Build Universal Binary (Apple Silicon & Intel)
         run: |
-          swiftc $(find . -name "*.swift") -target arm64-apple-macosx11.0 -O -o macintercom-arm64
-          swiftc $(find . -name "*.swift") -target x86_64-apple-macosx10.15 -O -o macintercom-x86_64
+          swiftc -warnings-as-errors $(find . -name "*.swift") -target arm64-apple-macosx11.0 -O -o macintercom-arm64
+          swiftc -warnings-as-errors $(find . -name "*.swift") -target x86_64-apple-macosx10.15 -O -o macintercom-x86_64
           lipo -create -output macintercom macintercom-arm64 macintercom-x86_64
           lipo -info ./macintercom
 
