@@ -27,6 +27,11 @@ final class AudioCapture {
 
     private var ioProcID: AudioDeviceIOProcID?
 
+    private var gateOpen = false
+    private var gateHoldFrames = 0
+    private var justOpenedFrames: Int = 0
+    private var gateEnvelope: Float = 0.0
+    private var gateGain: Float = 0.0
     private var currentGain: Float = 1.0
     private var smoothedPeak: Float = 0.05
 
@@ -366,7 +371,8 @@ final class AudioCapture {
 
                 if DebugFlags.enableAGC {
 
-                    processed = applyAutomaticGain(mono8k)
+                    let gated = applyNoiseGate(mono8k)
+                    processed = applyAutomaticGain(gated)
 
                 } else {
 
@@ -488,7 +494,8 @@ final class AudioCapture {
 
                 if DebugFlags.enableAGC {
 
-                    processed = applyAutomaticGain(mono44100)
+                    let gated = applyNoiseGate(mono44100)
+                    processed = applyAutomaticGain(gated)
 
                 } else {
 
@@ -547,6 +554,73 @@ final class AudioCapture {
         }
     }
 
+    private func applyNoiseGate(
+        _ samples: [Float]
+    ) -> [Float] {
+
+        guard !samples.isEmpty else {
+            return samples
+        }
+
+        var output = samples
+
+        var peak: Float = 0
+        for sample in output {
+            peak = max(peak, abs(sample))
+        }
+
+        let envelopeAttack: Float = 0.60
+        let envelopeRelease: Float = 0.03
+
+        if peak > gateEnvelope {
+            gateEnvelope += (peak - gateEnvelope) * envelopeAttack
+        } else {
+            gateEnvelope += (peak - gateEnvelope) * envelopeRelease
+        }
+
+        let openThreshold: Float = 0.008
+        let closeThreshold: Float = 0.003
+
+        let holdBuffers = 15
+
+        let wasOpen = gateOpen
+
+        if gateOpen {
+            if gateEnvelope < closeThreshold {
+                if gateHoldFrames > 0 {
+                    gateHoldFrames -= 1
+                } else {
+                    gateOpen = false
+                }
+            } else {
+                gateHoldFrames = holdBuffers
+            }
+        } else {
+            if gateEnvelope > openThreshold {
+                gateOpen = true
+                gateHoldFrames = holdBuffers
+            }
+        }
+
+        if gateOpen && !wasOpen {
+            justOpenedFrames = 6
+        }
+
+        let targetGain: Float = gateOpen ? 1.0 : 0.0
+
+        if targetGain > gateGain {
+            gateGain += (targetGain - gateGain) * 0.70
+        } else {
+            gateGain += (targetGain - gateGain) * 0.05
+        }
+
+        for i in 0..<output.count {
+            output[i] *= gateGain
+        }
+
+        return output
+    }
+
     private func applyAutomaticGain(
         _ samples: [Float]
     ) -> [Float] {
@@ -554,47 +628,52 @@ final class AudioCapture {
         var output = samples
 
         var bufferPeak: Float = 0
+
         for sample in output {
             bufferPeak = max(bufferPeak, abs(sample))
         }
 
-        // Update the envelope once per buffer.
-        smoothedPeak =
-            smoothedPeak * 0.95 + bufferPeak * 0.05
+        let envelopeAttack: Float = 0.85
+        let envelopeRelease: Float = 0.002
 
-        // Lowered from 0.95 to a comfortable listening volume
-        let targetLevel: Float = 0.65
+        if bufferPeak > smoothedPeak {
+            smoothedPeak += (bufferPeak - smoothedPeak) * envelopeAttack
+        } else {
+            smoothedPeak += (bufferPeak - smoothedPeak) * envelopeRelease
+        }
 
-        // A middle ground: low enough to catch the Mixer, high enough to ignore USB silence
+        let targetLevel: Float = 0.85
         let minimumSignalLevel: Float = 0.005
+        let maximumGain: Float = 12.0
 
         var targetGain: Float
 
         if smoothedPeak > minimumSignalLevel {
             targetGain = targetLevel / smoothedPeak
         } else {
-            // If it falls below the minimum signal (true silence), fade back to no boost
             targetGain = 1.0
         }
 
-        // Capped at 30x boost. 100x is too aggressive for standard digital mics.
-        targetGain = min(targetGain, 30.0)
+        targetGain = min(targetGain, maximumGain)
+
+        let gainReleaseRate: Float = 0.005
+        let gainAttackRate: Float = 0.60
+        let onsetGainAttackRate: Float = 0.10
 
         if targetGain < currentGain {
-            // FAST ATTACK: Signal suddenly got loud. Drop gain rapidly (20% per buffer) to prevent clipping/fuzziness.
-            currentGain += (targetGain - currentGain) * 0.20
+            let attackRate = justOpenedFrames > 0 ? onsetGainAttackRate : gainAttackRate
+            currentGain += (targetGain - currentGain) * attackRate
         } else {
-            // SLOW RELEASE: Signal is quiet. Raise gain slowly (1% per buffer) so room noise doesn't pump.
-            currentGain += (targetGain - currentGain) * 0.01
+            currentGain += (targetGain - currentGain) * gainReleaseRate
         }
 
-        // Slightly safer hard ceiling
-        let maxOutput: Float = 0.95
+        if justOpenedFrames > 0 {
+            justOpenedFrames -= 1
+        }
 
         for i in 0..<output.count {
             var sample = output[i] * currentGain
-            // Hard clipper
-            sample = max(-maxOutput, min(maxOutput, sample))
+            sample = tanh(sample) * 0.99
             output[i] = sample
         }
 
