@@ -12,11 +12,23 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 - Test tone diagnostics
 - Audio route status logging
 
-## Installation
+## Installation (macOS)
 
-MacIntercom is currently distributed as source code and unsigned release binaries.
+MacIntercom is distributed as a pre-compiled, ad-hoc signed universal binary. 
 
-Because MacIntercom is not signed with an Apple Developer certificate, macOS may require manually approving the executable before first use.
+Because it is signed ad-hoc (rather than using an official Apple Developer account), macOS will block its initial execution with a security prompt.
+
+**To run the binary immediately:**
+1. Download the `macintercom-macos-universal-...zip` file from the latest Release and extract it.
+2. Open your terminal and navigate to the folder containing the extracted file.
+3. Strip the web-download quarantine flag by running:
+   ```
+   xattr -d com.apple.quarantine ./macintercom
+   ```
+3. Run the application normally:
+   ```
+   ./macintercom
+   ```
 
 ## Modes
 
