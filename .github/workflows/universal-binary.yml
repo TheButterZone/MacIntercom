@@ -20,10 +20,10 @@ jobs:
     runs-on: macos-latest
 
     steps:
-	- name: Checkout Source Code
+      - name: Checkout Source Code
         uses: actions/checkout@v7
 
-	- name: Determine Version Tag
+      - name: Determine Version Tag
         id: vars
         run: |
           if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
@@ -32,27 +32,27 @@ jobs:
             echo "TAG=${{ github.ref_name }}" >> $GITHUB_OUTPUT
           fi
 
-	- name: Build Universal Binary (Apple Silicon & Intel)
+      - name: Build Universal Binary (Apple Silicon & Intel)
         run: |
           swiftc -warnings-as-errors $(find . -name "*.swift") -target arm64-apple-macosx11.0 -O -o macintercom-arm64
           swiftc -warnings-as-errors $(find . -name "*.swift") -target x86_64-apple-macosx10.15 -O -o macintercom-x86_64
           lipo -create -output macintercom macintercom-arm64 macintercom-x86_64
           lipo -info ./macintercom
 
-	- name: Set Permissions and Code Sign
-	run: |
-	  chmod +x ./macintercom
-	  codesign --force --options runtime --sign - ./macintercom
+      - name: Set Permissions and Code Sign
+        run: |
+          chmod +x ./macintercom
+          codesign --force --options runtime --sign - ./macintercom
 
-	- name: Zip Binary (Preserves Executable Permissions)
+      - name: Zip Binary (Preserves Executable Permissions)
         run: |
           zip macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip macintercom
 
-	- name: Generate SHA256 Checksum
+      - name: Generate SHA256 Checksum
         run: |
           shasum -a 256 macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip > SHA256SUMS
 
-	- name: Create GitHub Release and Upload Assets
+      - name: Create GitHub Release and Upload Assets
         uses: softprops/action-gh-release@v3
         with:
           tag_name: ${{ steps.vars.outputs.TAG }}
