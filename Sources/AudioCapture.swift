@@ -46,9 +46,10 @@ final class AudioCapture {
     var onFirstCallback: (() -> Void)?
     private var hasReportedFirstCallback = false
 
-    private let shouldDownsample: Bool
+private let shouldDownsample: Bool
     private let outputDevice: AudioDevice
-    private var upsampler: AudioResampler
+    private var upsampler: AudioResampler?
+    private var streamingResampler: StreamingResampler?
 
     var isMuted: Bool = false
 
@@ -58,26 +59,23 @@ final class AudioCapture {
         audioBuffer: AudioBuffer,
         shouldDownsample: Bool
     ) {
-
         self.device = device
         self.outputDevice = outputDevice
         self.audioBuffer = audioBuffer
         self.shouldDownsample = shouldDownsample
 
-        if shouldDownsample {
+        let inRate = shouldDownsample ? 8000.0 : device.sampleRate
 
-            self.upsampler = AudioResampler(
-                inputSampleRate: 8000,
+        if DebugFlags.useHighQualityResampler {
+            self.streamingResampler = StreamingResampler(
+                inputSampleRate: inRate,
                 outputSampleRate: outputDevice.sampleRate
             )
-
         } else {
-
             self.upsampler = AudioResampler(
-                inputSampleRate: device.sampleRate,
+                inputSampleRate: inRate,
                 outputSampleRate: outputDevice.sampleRate
             )
-
         }
     }
 
@@ -468,13 +466,11 @@ final class AudioCapture {
                     monoInputSamples = capturedSamples
                 }
 
-                let mono44100 = self.resampleToOutputStereo(
-                    monoInputSamples
-                )
+	let resampledSamples = self.resampleToOutput(monoInputSamples)
 
                 var peak: Float = 0
 
-                for sample in mono44100 {
+                for sample in resampledSamples {
                     peak = max(peak, abs(sample))
                 }
 
@@ -484,22 +480,22 @@ final class AudioCapture {
                         """
                         BTOC
                         peak=\(peak)
-                        samples=\(mono44100.count)
+                        samples=\(resampledSamples.count)
                         queue=\(self.audioBuffer.sampleCount())
                         """
                     )
                 }
 
-                let processed: [Float]
+	let processed: [Float]
 
                 if DebugFlags.enableAGC {
 
-                    let gated = applyNoiseGate(mono44100)
+                    let gated = applyNoiseGate(resampledSamples)
                     processed = applyAutomaticGain(gated)
 
                 } else {
 
-                    processed = mono44100
+                    processed = resampledSamples
 
                 }
 
@@ -741,20 +737,13 @@ final class AudioCapture {
         return output
     }
 
-    private func resampleToOutputStereo(
-        _ samples: [Float]
-    ) -> [Float] {
-
-        let output = upsampler.process(samples)
-
-        DebugTelemetry.capture.log(
-            """
-            BT RESAMPLE OUTPUT
-            inputSamples=\(samples.count)
-            outputSamples=\(output.count)
-            """
-        )
-
+    private func resampleToOutput(_ samples: [Float]) -> [Float] {
+        let output: [Float]
+        if DebugFlags.useHighQualityResampler {
+            output = streamingResampler!.process(samples)
+        } else {
+            output = upsampler!.process(samples)
+        }
         return output
     }
 }

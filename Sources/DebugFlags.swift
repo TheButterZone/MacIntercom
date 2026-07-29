@@ -12,6 +12,7 @@ enum DebugFlags {
     // MARK: - Audio processing
 
     static let enableAGC          = true
+    static let useHighQualityResampler = true
     static let enableDownsampling = true
     static let enableUpsampling   = true
 
