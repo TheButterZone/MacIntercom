@@ -46,10 +46,9 @@ final class AudioCapture {
     var onFirstCallback: (() -> Void)?
     private var hasReportedFirstCallback = false
 
-private let shouldDownsample: Bool
+    private let shouldDownsample: Bool
     private let outputDevice: AudioDevice
-    private var upsampler: AudioResampler?
-    private var streamingResampler: StreamingResampler?
+    private var streamingResampler: StreamingResampler
 
     var isMuted: Bool = false
 
@@ -65,18 +64,10 @@ private let shouldDownsample: Bool
         self.shouldDownsample = shouldDownsample
 
         let inRate = shouldDownsample ? 8000.0 : device.sampleRate
-
-        if DebugFlags.useHighQualityResampler {
-            self.streamingResampler = StreamingResampler(
-                inputSampleRate: inRate,
-                outputSampleRate: outputDevice.sampleRate
-            )
-        } else {
-            self.upsampler = AudioResampler(
-                inputSampleRate: inRate,
-                outputSampleRate: outputDevice.sampleRate
-            )
-        }
+        self.streamingResampler = StreamingResampler(
+            inputSampleRate: inRate,
+            outputSampleRate: outputDevice.sampleRate
+        )
     }
 
     private func printStreamFormat() {
@@ -466,7 +457,7 @@ private let shouldDownsample: Bool
                     monoInputSamples = capturedSamples
                 }
 
-	let resampledSamples = self.resampleToOutput(monoInputSamples)
+                let resampledSamples = self.resampleToOutput(monoInputSamples)
 
                 var peak: Float = 0
 
@@ -486,7 +477,7 @@ private let shouldDownsample: Bool
                     )
                 }
 
-	let processed: [Float]
+                let processed: [Float]
 
                 if DebugFlags.enableAGC {
 
@@ -738,12 +729,6 @@ private let shouldDownsample: Bool
     }
 
     private func resampleToOutput(_ samples: [Float]) -> [Float] {
-        let output: [Float]
-        if DebugFlags.useHighQualityResampler {
-            output = streamingResampler!.process(samples)
-        } else {
-            output = upsampler!.process(samples)
-        }
-        return output
+        return streamingResampler.process(samples)
     }
 }

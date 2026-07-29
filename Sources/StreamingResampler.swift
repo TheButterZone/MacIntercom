@@ -23,20 +23,18 @@ final class StreamingResampler {
 
     private let inputSampleRate: Float
     private let outputSampleRate: Float
-
     private let ratio: Float
 
-    private var position: Float = 0
+    private var position: Float = 0.0
+    private var history: [Float] = [0.0, 0.0]
 
     init(
         inputSampleRate: Double,
         outputSampleRate: Double
     ) {
-
         self.inputSampleRate = Float(inputSampleRate)
         self.outputSampleRate = Float(outputSampleRate)
 
-        // Ratio of input frames per output frame (e.g., 16000 / 48000 = 0.333)
         if self.outputSampleRate > 0 {
             self.ratio = self.inputSampleRate / self.outputSampleRate
         } else {
@@ -52,39 +50,51 @@ final class StreamingResampler {
             return samples
         }
 
+        var working = history
+        working.append(contentsOf: samples)
+
         var output: [Float] = []
-        
-        // Reserve capacity for output buffer (e.g. 16kHz -> 48kHz expands ~3x)
         let estimatedCount = Int(Float(samples.count) / ratio) + 16
         output.reserveCapacity(estimatedCount)
 
         var pos = position
-        let sampleCount = samples.count
+        let workingCount = working.count
 
-        while Int(pos) + 1 < sampleCount {
+        while Int(pos) + 2 < workingCount {
             let index = Int(pos)
-            let fraction = pos - Float(index)
+            let mu = pos - Float(index)
 
-            let s0 = samples[index]
-            let s1 = samples[index + 1]
+            let y0 = working[max(0, index - 1)]
+            let y1 = working[index]
+            let y2 = working[index + 1]
+            let y3 = working[min(workingCount - 1, index + 2)]
 
-            // Linear interpolation between frames
-            let interpolated = s0 + (s1 - s0) * fraction
-            output.append(interpolated)
+            let c0 = y1
+            let c1 = 0.5 * (y2 - y0)
+            let c2 = y0 - 2.5 * y1 + 2.0 * y2 - 0.5 * y3
+            let c3 = 0.5 * (y3 - y0) + 1.5 * (y1 - y2)
+
+            let sample = ((c3 * mu + c2) * mu + c1) * mu + c0
+            output.append(sample)
 
             pos += ratio
         }
 
-        // Carry over fractional position to the next buffer callback
-        position = pos - Float(sampleCount)
-        if position < 0 {
-            position = 0
+        if samples.count >= 2 {
+            history = [samples[samples.count - 2], samples[samples.count - 1]]
+        } else if !samples.isEmpty {
+            history = [history[1], samples[samples.count - 1]]
         }
+
+        let consumedFrames = Int(pos)
+        pos -= Float(consumedFrames)
+        position = max(0, pos)
 
         return output
     }
 
     func reset() {
-        position = 0
+        position = 0.0
+        history = [0.0, 0.0]
     }
 }

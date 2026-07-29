@@ -12,7 +12,7 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 - USB & analog microphone support
 - Optional media-aware operation
 - Standalone always-on intercom mode
-- Low-latency streaming audio pipeline
+- Low-latency, high-quality streaming audio pipeline
 - Integrated AGC and hysteresis noise gate
 - Test tone diagnostics
 
@@ -50,14 +50,10 @@ Because it is signed ad-hoc (rather than using an official Apple Developer accou
 
 Current development focuses on:
 
-- improving sample-rate conversion
 - preparing optional WebRTC Voice Activity Detection
 - stabilizing the 0.1.x series before GUI work begins
 
 ## Roadmap
-
-v0.1.7
-- Higher-quality sample-rate conversion
 
 v0.1.8
 - Optional WebRTC Voice Activity Detection
