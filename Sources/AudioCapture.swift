@@ -27,14 +27,6 @@ final class AudioCapture {
 
     private var ioProcID: AudioDeviceIOProcID?
 
-    private var gateOpen = false
-    private var gateHoldFrames = 0
-    private var justOpenedFrames: Int = 0
-    private var gateEnvelope: Float = 0.0
-    private var gateGain: Float = 0.0
-    private var currentGain: Float = 1.0
-    private var smoothedPeak: Float = 0.05
-
     var position: Float = 0
     private var downsamplePosition: Float = 0
 
@@ -49,6 +41,9 @@ final class AudioCapture {
     private let shouldDownsample: Bool
     private let outputDevice: AudioDevice
     private var streamingResampler: StreamingResampler
+    
+    // Dedicated DSP pipeline
+    private let audioProcessor = AudioProcessor()
 
     var isMuted: Bool = false
 
@@ -184,40 +179,27 @@ final class AudioCapture {
         let shouldStart: Bool
 
         if device.transport == "Bluetooth" {
-
-            shouldStart =
-                DebugFlags.enableBluetoothCapture
-
+            shouldStart = DebugFlags.enableBluetoothCapture
         } else {
-
-            shouldStart =
-                DebugFlags.enableComputerCapture
-
+            shouldStart = DebugFlags.enableComputerCapture
         }
 
         if shouldStart {
-
             let startStatus = AudioDeviceStart(
                 device.id,
                 ioProcID!
             )
 
             if startStatus != noErr {
-
                 Logger.error(
                     "Failed to start capture device \(device.name): \(startStatus)"
                 )
-
             }
-
         } else {
-
             Logger.info(
                 "DEBUG: Capture disabled for \(device.name)"
             )
-
         }
-
     }
 
     private func captureInput(
@@ -235,13 +217,11 @@ final class AudioCapture {
         )
 
         if self.callbackCount == 1 {
-
             DebugTelemetry.capture.log(
                 "Audio buffers: \(bufferList.count)"
             )
 
             for (index, buffer) in bufferList.enumerated() {
-
                 DebugTelemetry.capture.log(
                     """
                     Buffer
@@ -264,23 +244,16 @@ final class AudioCapture {
             )
 
             if !self.hasReportedFirstCallback {
-
                 self.hasReportedFirstCallback = true
-
                 DispatchQueue.main.async {
-
                     self.onFirstCallback?()
-
                 }
             }
 
             let sampleCount =
-                Int(
-                    bufferList[0].mDataByteSize
-                ) / MemoryLayout<Float>.size
+                Int(bufferList[0].mDataByteSize) / MemoryLayout<Float>.size
 
             if self.callbackCount == 1 {
-
                 DebugTelemetry.capture.log(
                     """
                     FIRST CALLBACK
@@ -293,7 +266,6 @@ final class AudioCapture {
             var peak: Float = 0
 
             for i in 0..<sampleCount {
-
                 let normalized = abs(samples[i])
 
                 if normalized > peak {
@@ -313,7 +285,6 @@ final class AudioCapture {
             }
 
             if self.callbackCount % 100 == 0 {
-
                 DebugTelemetry.capture.log(
                     """
                     RAW CAPTURE
@@ -323,7 +294,6 @@ final class AudioCapture {
                     channels=\(bufferList[0].mNumberChannels)
                     """
                 )
-
             }
 
             let capturedSamples = Array(
@@ -334,7 +304,6 @@ final class AudioCapture {
             )
 
             if self.callbackCount % 100 == 0 {
-
                 DebugTelemetry.capture.log(
                     """
                     CAPTURE
@@ -359,48 +328,36 @@ final class AudioCapture {
                 let processed: [Float]
 
                 if DebugFlags.enableAGC {
-
-                    let gated = applyNoiseGate(mono8k)
-                    processed = applyAutomaticGain(gated)
-
+                    processed = audioProcessor.processAGCAndGate(mono8k)
                 } else {
-
                     processed = mono8k
-
                 }
 
                 if DebugFlags.enableAGC && self.callbackCount % 100 == 0 {
-
                     DebugTelemetry.capture.log(
                         """
                         AGC
                         device=\(device.name)
-                        gain=\(self.currentGain)
-                        peak=\(self.smoothedPeak)
+                        gain=\(audioProcessor.currentGain)
+                        peak=\(audioProcessor.smoothedPeak)
                         """
                     )
-
                 }
 
                 if self.callbackCount % 100 == 0 {
-
                     DebugTelemetry.capture.log(
                         "DOWNSAMPLED=\(mono8k.count)"
                     )
-
                 }
 
                 for sample in processed {
-
                     let peak = abs(sample)
-
                     if peak > self.highestProcessedPeak {
                         self.highestProcessedPeak = peak
                     }
                 }
 
                 if DebugFlags.enableAGC && self.callbackCount % 500 == 0 {
-
                     Logger.levels(
                         "Highest processed peak: \(self.highestProcessedPeak)"
                     )
@@ -408,11 +365,9 @@ final class AudioCapture {
                 }
 
                 if DebugFlags.enableAGC && self.callbackCount % 500 == 0 {
-
                     Logger.levels(
-                        "Gain: \(self.currentGain) Peak: \(self.smoothedPeak)"
+                        "Gain: \(audioProcessor.currentGain) Peak: \(audioProcessor.smoothedPeak)"
                     )
-
                 }
 
                 DebugTelemetry.capture.log(
@@ -424,9 +379,7 @@ final class AudioCapture {
                     """
                 )
 
-                self.audioBuffer.write(
-                    processed
-                )
+                self.audioBuffer.write(processed)
 
             } else {
 
@@ -466,7 +419,6 @@ final class AudioCapture {
                 }
 
                 if callbackCount % 100 == 0 {
-
                     DebugTelemetry.output.log(
                         """
                         BTOC
@@ -480,39 +432,30 @@ final class AudioCapture {
                 let processed: [Float]
 
                 if DebugFlags.enableAGC {
-
-                    let gated = applyNoiseGate(resampledSamples)
-                    processed = applyAutomaticGain(gated)
-
+                    processed = audioProcessor.processAGCAndGate(resampledSamples)
                 } else {
-
                     processed = resampledSamples
-
                 }
 
                 if DebugFlags.enableAGC && self.callbackCount % 100 == 0 {
-
                     DebugTelemetry.capture.log(
                         """
                         AGC
                         device=\(device.name)
-                        gain=\(self.currentGain)
-                        peak=\(self.smoothedPeak)
+                        gain=\(audioProcessor.currentGain)
+                        peak=\(audioProcessor.smoothedPeak)
                         """
                     )
-
                 }
 
                 for sample in processed {
                     let peak = abs(sample)
-
                     if peak > self.highestProcessedPeak {
                         self.highestProcessedPeak = peak
                     }
                 }
 
                 if DebugFlags.enableAGC && self.callbackCount % 500 == 0 {
-
                     Logger.levels(
                         "Highest processed peak: \(self.highestProcessedPeak)"
                     )
@@ -520,16 +463,12 @@ final class AudioCapture {
                 }
 
                 if DebugFlags.enableAGC && self.callbackCount % 500 == 0 {
-
                     Logger.levels(
-                        "Gain: \(self.currentGain) Peak: \(self.smoothedPeak)"
+                        "Gain: \(audioProcessor.currentGain) Peak: \(audioProcessor.smoothedPeak)"
                     )
                 }
 
-                self.audioBuffer.write(
-                    processed
-                )
-
+                self.audioBuffer.write(processed)
             }
 
             if self.callbackCount % 100 == 0 {
@@ -537,134 +476,7 @@ final class AudioCapture {
                     "BT queue: \(self.audioBuffer.sampleCount())"
                 )
             }
-
         }
-    }
-
-    private func applyNoiseGate(
-        _ samples: [Float]
-    ) -> [Float] {
-
-        guard !samples.isEmpty else {
-            return samples
-        }
-
-        var output = samples
-
-        var peak: Float = 0
-        for sample in output {
-            peak = max(peak, abs(sample))
-        }
-
-        let envelopeAttack: Float = 0.60
-        let envelopeRelease: Float = 0.03
-
-        if peak > gateEnvelope {
-            gateEnvelope += (peak - gateEnvelope) * envelopeAttack
-        } else {
-            gateEnvelope += (peak - gateEnvelope) * envelopeRelease
-        }
-
-        let openThreshold: Float = 0.008
-        let closeThreshold: Float = 0.003
-
-        let holdBuffers = 15
-
-        let wasOpen = gateOpen
-
-        if gateOpen {
-            if gateEnvelope < closeThreshold {
-                if gateHoldFrames > 0 {
-                    gateHoldFrames -= 1
-                } else {
-                    gateOpen = false
-                }
-            } else {
-                gateHoldFrames = holdBuffers
-            }
-        } else {
-            if gateEnvelope > openThreshold {
-                gateOpen = true
-                gateHoldFrames = holdBuffers
-            }
-        }
-
-        if gateOpen && !wasOpen {
-            justOpenedFrames = 6
-        }
-
-        let targetGain: Float = gateOpen ? 1.0 : 0.0
-
-        if targetGain > gateGain {
-            gateGain += (targetGain - gateGain) * 0.70
-        } else {
-            gateGain += (targetGain - gateGain) * 0.05
-        }
-
-        for i in 0..<output.count {
-            output[i] *= gateGain
-        }
-
-        return output
-    }
-
-    private func applyAutomaticGain(
-        _ samples: [Float]
-    ) -> [Float] {
-
-        var output = samples
-
-        var bufferPeak: Float = 0
-
-        for sample in output {
-            bufferPeak = max(bufferPeak, abs(sample))
-        }
-
-        let envelopeAttack: Float = 0.85
-        let envelopeRelease: Float = 0.002
-
-        if bufferPeak > smoothedPeak {
-            smoothedPeak += (bufferPeak - smoothedPeak) * envelopeAttack
-        } else {
-            smoothedPeak += (bufferPeak - smoothedPeak) * envelopeRelease
-        }
-
-        let targetLevel: Float = 0.85
-        let minimumSignalLevel: Float = 0.005
-        let maximumGain: Float = 12.0
-
-        var targetGain: Float
-
-        if smoothedPeak > minimumSignalLevel {
-            targetGain = targetLevel / smoothedPeak
-        } else {
-            targetGain = 1.0
-        }
-
-        targetGain = min(targetGain, maximumGain)
-
-        let gainReleaseRate: Float = 0.005
-        let gainAttackRate: Float = 0.60
-        let onsetGainAttackRate: Float = 0.10
-
-        if targetGain < currentGain {
-            let attackRate = justOpenedFrames > 0 ? onsetGainAttackRate : gainAttackRate
-            currentGain += (targetGain - currentGain) * attackRate
-        } else {
-            currentGain += (targetGain - currentGain) * gainReleaseRate
-        }
-
-        if justOpenedFrames > 0 {
-            justOpenedFrames -= 1
-        }
-
-        for i in 0..<output.count {
-            var sample = output[i] * currentGain
-            sample = tanh(sample) * 0.99
-            output[i] = sample
-        }
-
-        return output
     }
 
     private func downsampleTo8kMono(

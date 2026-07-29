@@ -10,11 +10,14 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 - Automatic hardware format detection
 - Integrated Bluetooth microphone support
 - USB & analog microphone support
-- Optional media-aware operation
-- Standalone always-on intercom mode
-- Low-latency, high-quality streaming audio pipeline
-- Integrated AGC and hysteresis noise gate
+- Media-aware operation (enabled by default)
+- Optional standalone always-on intercom mode
 - Test tone diagnostics
+- Low-latency, high-quality streaming audio pipeline
+- Integrated AGC and WebRTC Voice Activity Detection (VAD)
+   * WebRTC VAD enabled by default for intelligent voice-gating
+   * Replaces legacy envelope follower (toggleable via `DebugFlags`) to significantly reduce false triggers from room noise
+   * Lightweight, zero external dependency footprint
 
 ## Requirements
 
@@ -50,13 +53,9 @@ Because it is signed ad-hoc (rather than using an official Apple Developer accou
 
 Current development focuses on:
 
-- preparing optional WebRTC Voice Activity Detection
 - stabilizing the 0.1.x series before GUI work begins
 
 ## Roadmap
-
-v0.1.8
-- Optional WebRTC Voice Activity Detection
 
 v0.1.9
 - Stabilization and regression testing
@@ -103,3 +102,6 @@ You are free to use, modify, and redistribute MacIntercom under the terms of the
 Organizations requiring proprietary integration, closed-source distribution, commercial hardware bundling, custom development, or dedicated support may contact the author regarding commercial licensing.
 
 Contact: tbz.one/contact
+
+### Third-Party Components
+MacIntercom incorporates Voice Activity Detection (VAD) algorithms from the WebRTC project. Please refer to the [THIRD_PARTY_LICENSES.md](THIRD_PARTY_LICENSES.md) file for complete copyright notices and redistribution terms.

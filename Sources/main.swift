@@ -71,7 +71,7 @@ DebugTelemetry.capture.log(
     """
 )
 
-print("MacIntercom v0.1.7 — Copyright (C) 2026 TheButterZone")
+print("MacIntercom v0.1.8 — Copyright (C) 2026 TheButterZone")
 print("This program comes with ABSOLUTELY NO WARRANTY.")
 print("This is free software under the GPLv3; see the LICENSE file for details.\n")
 
