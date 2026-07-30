@@ -9,7 +9,7 @@ on:
       version:
         description: 'Version tag to release'
         required: true
-        default: 'v0.1.6'
+        default: 'v0.1.8'
 
 permissions:
   contents: write
@@ -34,93 +34,27 @@ jobs:
 
       - name: Build Universal Binary (Apple Silicon & Intel)
         run: |
-          echo "Preparing build environment..."
-          mkdir -p Sources/WebRTCVAD
-
-          # Create the rtc_FatalMessage implementation stub if it doesn't already exist
-          if [ ! -f Sources/WebRTCVAD/rtc_stub.c ]; then
-              cat << 'EOF' > Sources/WebRTCVAD/rtc_stub.c
-          #include <stdio.h>
-          #include <stdlib.h>
-
-          void rtc_FatalMessage(const char* file, int line, const char* msg) {
-              fprintf(stderr, "FATAL ERROR in %s:%d - %s\n", file, line, msg);
-              abort();
-          }
-          EOF
-          fi
+          # Ensure the build script is executable
+          chmod +x ./build.sh
 
           # --- Build ARM64 Slice ---
-          echo "Compiling C sources for ARM64..."
-          mkdir -p .build/arm64/vad .build/arm64/sp .build/arm64/stub
-          
-          clang -c -target arm64-apple-macosx11.0 Sources/WebRTCVAD/rtc_stub.c -o .build/arm64/stub/rtc_stub.o
-
-          for cfile in Sources/WebRTCVAD/webrtc/common_audio/vad/*.c; do
-              clang -c -target arm64-apple-macosx11.0 "$cfile" \
-                -DWEBRTC_POSIX \
-                -I Sources/WebRTCVAD \
-                -o ".build/arm64/vad/$(basename "$cfile" .c).o"
-          done
-
-          for cfile in Sources/WebRTCVAD/webrtc/common_audio/signal_processing/*.c; do
-              clang -c -target arm64-apple-macosx11.0 "$cfile" \
-                -DWEBRTC_POSIX \
-                -I Sources/WebRTCVAD \
-                -o ".build/arm64/sp/$(basename "$cfile" .c).o"
-          done
-
-          echo "Compiling Swift files and linking ARM64 slice..."
-          swiftc \
-            Sources/*.swift \
-            Sources/WebRTCVAD/WebRTCVAD.swift \
-            .build/arm64/stub/*.o \
-            .build/arm64/vad/*.o \
-            .build/arm64/sp/*.o \
-            -target arm64-apple-macosx11.0 \
-            -import-objc-header Sources/MacIntercom-Bridging-Header.h \
-            -I Sources/WebRTCVAD \
-            -O -o macintercom-arm64
+          echo "Building ARM64 slice using build.sh..."
+          ./build.sh arm64
+          mv bin/macintercom macintercom-arm64
 
           # --- Build x86_64 Slice ---
-          echo "Compiling C sources for x86_64..."
-          mkdir -p .build/x86_64/vad .build/x86_64/sp .build/x86_64/stub
-          
-          clang -c -target x86_64-apple-macosx10.15 Sources/WebRTCVAD/rtc_stub.c -o .build/x86_64/stub/rtc_stub.o
+          echo "Building x86_64 slice using build.sh..."
+          ./build.sh x86_64
+          mv bin/macintercom macintercom-x86_64
 
-          for cfile in Sources/WebRTCVAD/webrtc/common_audio/vad/*.c; do
-              clang -c -target x86_64-apple-macosx10.15 "$cfile" \
-                -DWEBRTC_POSIX \
-                -I Sources/WebRTCVAD \
-                -o ".build/x86_64/vad/$(basename "$cfile" .c).o"
-          done
-
-          for cfile in Sources/WebRTCVAD/webrtc/common_audio/signal_processing/*.c; do
-              clang -c -target x86_64-apple-macosx10.15 "$cfile" \
-                -DWEBRTC_POSIX \
-                -I Sources/WebRTCVAD \
-                -o ".build/x86_64/sp/$(basename "$cfile" .c).o"
-          done
-
-          echo "Compiling Swift files and linking x86_64 slice..."
-          swiftc \
-            Sources/*.swift \
-            Sources/WebRTCVAD/WebRTCVAD.swift \
-            .build/x86_64/stub/*.o \
-            .build/x86_64/vad/*.o \
-            .build/x86_64/sp/*.o \
-            -target x86_64-apple-macosx10.15 \
-            -import-objc-header Sources/MacIntercom-Bridging-Header.h \
-            -I Sources/WebRTCVAD \
-            -O -o macintercom-x86_64
-
-          # --- Combine Slices ---
+          # --- Combine Universal Binary ---
           echo "Creating universal binary with lipo..."
           lipo -create -output macintercom macintercom-arm64 macintercom-x86_64
           lipo -info ./macintercom
 
           echo "Cleaning up temporary build artifacts..."
-          rm -rf .build macintercom-arm64 macintercom-x86_64
+          rm -f macintercom-arm64 macintercom-x86_64
+          rm -rf bin
 
       - name: Set Permissions and Code Sign
         run: |
