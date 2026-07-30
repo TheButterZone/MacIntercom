@@ -4,6 +4,7 @@ enum OperatingMode {
     case mediaAware
     case standalone
     case testTone
+    case sdr
 }
 
 struct AppConfiguration {

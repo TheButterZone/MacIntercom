@@ -91,7 +91,15 @@ final class AudioProcessor {
         }
 
         let closeThreshold: Float = 0.003
-        let holdBuffers = 2
+
+	let targetHangoverMS: Double = DebugFlags.useWebRTCVAD ? 1000.0 : 40.0
+    
+	let effectiveSampleRate: Double = 8000.0 
+	let bufferDurationMS = (Double(samples.count) / effectiveSampleRate) * 1000.0
+    
+	let calculatedBuffers = bufferDurationMS > 0 ? Int(ceil(targetHangoverMS / bufferDurationMS)) : (DebugFlags.useWebRTCVAD ? 25 : 2)
+	let holdBuffers = max(1, calculatedBuffers)
+
         let wasOpen = gateOpen
 
         if gateOpen {

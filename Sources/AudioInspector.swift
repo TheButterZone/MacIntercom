@@ -399,6 +399,22 @@ struct AudioInspector {
         )
     }
 
+    static func systemDefaultRoute() -> IntercomRoute? {
+        
+        guard let input = defaultInputDevice() else {
+            return nil
+        }
+        
+        guard let output = defaultOutputDevice() else {
+            return nil
+        }
+        
+        return IntercomRoute(
+            input: input,
+            output: output
+        )
+    }
+
     static func groupBluetoothEndpoints(
         _ devices: [AudioDevice]
     ) -> [BluetoothEndpoint] {

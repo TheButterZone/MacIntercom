@@ -45,54 +45,80 @@ if arguments.contains("--t") || arguments.contains("--testtone") {
     AppConfiguration.mode = .testTone
 } else if arguments.contains("--s") || arguments.contains("--standalone") {
     AppConfiguration.mode = .standalone
+} else if arguments.contains("--sdr") {
+    AppConfiguration.mode = .sdr
 } else {
     AppConfiguration.mode = .mediaAware
 }
 
-guard let bluetoothRoute = AudioInspector.bluetoothToComputerRoute() else {
-    Logger.error("No Bluetooth → Computer route")
-    exit(1)
+let computerRoute: IntercomRoute
+if AppConfiguration.mode == .sdr {
+    guard let route = AudioInspector.systemDefaultRoute() else {
+        Logger.error("No system default route found")
+        exit(1)
+    }
+    computerRoute = route
+} else {
+    guard let route = AudioInspector.computerToBluetoothRoute() else {
+        Logger.error("No Computer → Bluetooth route")
+        exit(1)
+    }
+    computerRoute = route
 }
 
-guard let computerRoute = AudioInspector.computerToBluetoothRoute() else {
-    Logger.error("No Computer → Bluetooth route")
-    exit(1)
-}
+let bluetoothRoute: IntercomRoute? = AudioInspector.bluetoothToComputerRoute()
 
 DebugTelemetry.shared.start()
 
-DebugTelemetry.capture.log(
-    """
-    AUDIO ROUTES
-    Bluetooth input=\(bluetoothRoute.input.name)
-    Bluetooth output=\(bluetoothRoute.output.name)
-    Computer input=\(computerRoute.input.name)
-    Computer output=\(computerRoute.output.name)
-    """
-)
+if let btRoute = bluetoothRoute {
+    DebugTelemetry.capture.log(
+        "AUDIO ROUTES\n" +
+        "Bluetooth input=\(btRoute.input.name)\n" +
+        "Bluetooth output=\(btRoute.output.name)\n" +
+        "Computer input=\(computerRoute.input.name)\n" +
+        "Computer output=\(computerRoute.output.name)"
+    )
+    AudioInspector.printBufferFrameSize(btRoute.input)
+    AudioInspector.printBufferFrameSize(btRoute.output)
+} else {
+    DebugTelemetry.capture.log(
+        "AUDIO ROUTES (SDR / No Bluetooth)\n" +
+        "Computer input=\(computerRoute.input.name)\n" +
+        "Computer output=\(computerRoute.output.name)"
+    )
+}
 
-print("MacIntercom v0.1.8 — Copyright (C) 2026 TheButterZone")
-print("This program comes with ABSOLUTELY NO WARRANTY.")
-print("This is free software under the GPLv3; see the LICENSE file for details.\n")
-
-AudioInspector.printBufferFrameSize(bluetoothRoute.input)
-AudioInspector.printBufferFrameSize(bluetoothRoute.output)
 AudioInspector.printBufferFrameSize(computerRoute.input)
 AudioInspector.printBufferFrameSize(computerRoute.output)
 
 let computerToBluetooth = IntercomEngine(
-    name: "Computer→BT",
+    name: "Computer→Output",
     route: computerRoute,
     shouldDownsample: true,
     primeBuffer: true
 )
 
-let bluetoothToComputer = IntercomEngine(
-    name: "BT→Computer",
-    route: bluetoothRoute,
-    shouldDownsample: false,
-    primeBuffer: true
-)
+let bluetoothToComputer: IntercomEngine
+if let btRoute = bluetoothRoute {
+    bluetoothToComputer = IntercomEngine(
+        name: "BT→Computer",
+        route: btRoute,
+        shouldDownsample: false,
+        primeBuffer: true
+    )
+} else {
+    let dummyRoute = IntercomRoute(input: computerRoute.input, output: computerRoute.output)
+    bluetoothToComputer = IntercomEngine(
+        name: "BT→Computer (Inactive)",
+        route: dummyRoute,
+        shouldDownsample: false,
+        primeBuffer: false
+    )
+}
+
+print("MacIntercom v0.1.8-sdr — Copyright (C) 2026 TheButterZone")
+print("This program comes with ABSOLUTELY NO WARRANTY.")
+print("This is free software under the GPLv3; see the LICENSE file for details.\n")
 
 let bluetoothMonitor = BluetoothMonitor()
 bluetoothMonitor.start()
@@ -128,6 +154,10 @@ case .testTone:
     computerToBluetooth.isMuted = false
     bluetoothToComputer.isMuted = false
     Logger.info("🎵 TEST TONE MODE: starting both engines")
+
+case .sdr:
+    computerToBluetooth.isMuted = false
+    bluetoothToComputer.isMuted = true
 }
 
 let engineStartupGroup = DispatchGroup()
@@ -138,14 +168,16 @@ computerToBluetooth.capture.onFirstCallback = {
     engineStartupGroup.leave()
 }
 
-engineStartupGroup.enter()
-bluetoothToComputer.capture.onFirstCallback = {
-    DebugTelemetry.capture.log("Bluetooth capture active")
-    engineStartupGroup.leave()
-}
-
 computerToBluetooth.start()
-bluetoothToComputer.start()
+
+if AppConfiguration.mode != .sdr {
+    engineStartupGroup.enter()
+    bluetoothToComputer.capture.onFirstCallback = {
+        DebugTelemetry.capture.log("Bluetooth capture active")
+        engineStartupGroup.leave()
+    }
+    bluetoothToComputer.start()
+}
 
 DispatchQueue.global().async {
     _ = engineStartupGroup.wait(timeout: .now() + 3.0)
@@ -174,6 +206,16 @@ case .standalone:
     
 case .testTone:
     break 
+
+case .sdr:
+    Logger.info("""
+    MacIntercom running in SDR SQUELCH mode.
+    
+    • WebRTC Voice Activity Detection (Squelch) and AGC are active.
+    • Bluetooth microphone disabled.
+    • Intended for wired/standard outputs (Built-in Speakers, Line-Out, USB).
+    • Avoid using Bluetooth audio output in this mode.
+    """)
 }
 
 app.run()

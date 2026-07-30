@@ -42,7 +42,6 @@ final class AudioCapture {
     private let outputDevice: AudioDevice
     private var streamingResampler: StreamingResampler
     
-    // Dedicated DSP pipeline
     private let audioProcessor = AudioProcessor()
 
     var isMuted: Bool = false
@@ -370,16 +369,33 @@ final class AudioCapture {
                     )
                 }
 
-                DebugTelemetry.capture.log(
-                    """
-                    CTOB
-                    mono8k=\(mono8k.count)
-                    processed=\(processed.count)
-                    queue=\(self.audioBuffer.sampleCount())
-                    """
-                )
-
-                self.audioBuffer.write(processed)
+                if AppConfiguration.mode == .sdr {
+                    let resampled = self.resampleToOutput(processed)
+                    
+                    if self.callbackCount % 100 == 0 {
+                        DebugTelemetry.capture.log(
+                            """
+                            CTOB (SDR)
+                            mono8k=\(mono8k.count)
+                            resampled=\(resampled.count)
+                            queue=\(self.audioBuffer.sampleCount())
+                            """
+                        )
+                    }
+                    self.audioBuffer.write(resampled)
+                } else {
+                    if self.callbackCount % 100 == 0 {
+                        DebugTelemetry.capture.log(
+                            """
+                            CTOB (Bluetooth)
+                            mono8k=\(mono8k.count)
+                            processed=\(processed.count)
+                            queue=\(self.audioBuffer.sampleCount())
+                            """
+                        )
+                    }
+                    self.audioBuffer.write(processed)
+                }
 
             } else {
 
