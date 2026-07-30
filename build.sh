@@ -37,11 +37,11 @@ EOF
 fi
 
 echo "Compiling C sources with clang for $ARCH (Optimized)..."
-clang -c -O3 Sources/WebRTCVAD/rtc_stub.c -o "$OBJ_DIR/stub/rtc_stub.o"
+clang -target "$TARGET_FLAG" -c -O3 Sources/WebRTCVAD/rtc_stub.c -o "$OBJ_DIR/stub/rtc_stub.o"
 
 # Compile VAD C files with optimization
 for cfile in Sources/WebRTCVAD/webrtc/common_audio/vad/*.c; do
-    clang -c -O3 "$cfile" \
+    clang -target "$TARGET_FLAG" -c -O3 "$cfile" \
       -DWEBRTC_POSIX \
       -I Sources/WebRTCVAD \
       -o "$OBJ_DIR/vad/$(basename "$cfile" .c).o"
@@ -49,7 +49,7 @@ done
 
 # Compile Signal Processing C files with optimization
 for cfile in Sources/WebRTCVAD/webrtc/common_audio/signal_processing/*.c; do
-    clang -c -O3 "$cfile" \
+    clang -target "$TARGET_FLAG" -c -O3 "$cfile" \
       -DWEBRTC_POSIX \
       -I Sources/WebRTCVAD \
       -o "$OBJ_DIR/sp/$(basename "$cfile" .c).o"
