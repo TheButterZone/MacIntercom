@@ -61,9 +61,9 @@ jobs:
           chmod +x ./macintercom
           codesign --force --options runtime --sign - ./macintercom
 
-      - name: Zip Binary (Preserves Executable Permissions)
+      - name: Zip Binary (Preserves Executable Permissions & macOS Metadata)
         run: |
-          zip macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip macintercom
+          ditto -c -k macintercom macintercom-macos-universal-${{ steps.vars.outputs.TAG }}.zip
 
       - name: Generate SHA256 Checksum
         run: |
