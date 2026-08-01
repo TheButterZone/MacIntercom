@@ -58,7 +58,7 @@ MacIntercom supports several operation modes depending on how you want to handle
 
 * **Universal 48 kHz Sample Rate:** To ensure the cleanest audio pipeline and lowest latency, set all active input and output devices (USB microphones, Line-In, Line-Out, and virtual routing tools like Soundflower) to a fixed **48 kHz** sample rate in macOS **Audio MIDI Setup**.
 
-* **Bluetooth and SDR Mode:** When running `macintercom` in standard intercom mode, macOS forces Bluetooth headsets into a lower-quality telephony profile (HFP) to use the microphone. However, because `--sdr` mode uses a virtual system input instead of your Bluetooth mic, you can route the output to any Bluetooth speaker or headphone and it will remain in crisp, full-fidelity A2DP (e.g., 32-bit/48kHz).
+* **Bluetooth and SDR Mode:** When running `macintercom` in standard intercom mode, macOS forces Bluetooth speakers with integrated microphones, and headsets, into a lower-quality telephony profile (HFP) to use the microphone. However, because `--sdr` mode uses a virtual system input instead of your Bluetooth mic, you can route the output to any Bluetooth speaker or headset and it will remain in crisp, full-fidelity A2DP (e.g., 32-bit/48kHz).
 
 ---
 
