@@ -46,6 +46,10 @@ final class AudioCapture {
 
     var isMuted: Bool = false
 
+    func setCTCSSTone(_ frequency: Float?) {
+        audioProcessor.setCTCSSTone(frequency)
+    }
+
     init(
         device: AudioDevice,
         outputDevice: AudioDevice,

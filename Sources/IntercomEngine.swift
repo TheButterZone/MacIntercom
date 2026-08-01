@@ -42,6 +42,10 @@ final class IntercomEngine {
         }
     }
 
+    func setCTCSSTone(_ frequency: Float?) {
+        capture.setCTCSSTone(frequency)
+    }
+
     init(
         name: String,
         route: IntercomRoute,

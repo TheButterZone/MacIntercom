@@ -40,15 +40,28 @@ AVCaptureDevice.requestAccess(for: .audio) { granted in
     }
 }
 
-let arguments = CommandLine.arguments
-if arguments.contains("--t") || arguments.contains("--testtone") {
-    AppConfiguration.mode = .testTone
-} else if arguments.contains("--s") || arguments.contains("--standalone") {
-    AppConfiguration.mode = .standalone
-} else if arguments.contains("--sdr") {
-    AppConfiguration.mode = .sdr
-} else {
-    AppConfiguration.mode = .mediaAware
+// Parse Command Line Arguments
+var argIndex = 1
+let args = CommandLine.arguments
+while argIndex < args.count {
+    let arg = args[argIndex]
+    if arg == "--t" || arg == "--testtone" {
+        AppConfiguration.mode = .testTone
+    } else if arg == "--s" || arg == "--standalone" {
+        AppConfiguration.mode = .standalone
+    } else if arg == "--sdr" {
+        AppConfiguration.mode = .sdr
+    } else if arg == "--tone" || arg == "-tone" {
+        if argIndex + 1 < args.count, let freq = Float(args[argIndex + 1]) {
+            AppConfiguration.sdrToneFrequency = freq
+            AppConfiguration.mode = .sdr
+            argIndex += 1
+        } else {
+            Logger.error("FATAL ERROR: --tone requires a numeric frequency (e.g., --tone 127.3)")
+            exit(1)
+        }
+    }
+    argIndex += 1
 }
 
 let computerRoute: IntercomRoute
@@ -146,7 +159,6 @@ case .mediaAware:
     MediaKeyInterceptor.shared.startIntercepting()
 
 case .standalone:
-    
     computerToBluetooth.isMuted = false
     bluetoothToComputer.isMuted = false
 
@@ -166,6 +178,10 @@ engineStartupGroup.enter()
 computerToBluetooth.capture.onFirstCallback = {
     DebugTelemetry.capture.log("Computer capture active")
     engineStartupGroup.leave()
+}
+
+if AppConfiguration.mode == .sdr {
+    computerToBluetooth.setCTCSSTone(AppConfiguration.sdrToneFrequency)
 }
 
 computerToBluetooth.start()
@@ -208,13 +224,18 @@ case .testTone:
     break 
 
 case .sdr:
+    let squelchMethod = AppConfiguration.sdrToneFrequency != nil 
+        ? "CTCSS Tone Squelch (\(AppConfiguration.sdrToneFrequency!) Hz) is active. WebRTC VAD disabled." 
+        : ("""
+	  WebRTC Voice Activity Detection (Squelch) and AGC are active. 
+	  To use CTCSS Tone Squelch instead of VAD, 
+	  restart with: ./macintercom --sdr -tone <frequency>
+	  """)
     Logger.info("""
     MacIntercom running in SDR SQUELCH mode.
     
-    • WebRTC Voice Activity Detection (Squelch) and AGC are active.
+    • \(squelchMethod)
     • Bluetooth microphone disabled.
-    • Intended for wired/standard outputs (Built-in Speakers, Line-Out, USB).
-    • Avoid using Bluetooth audio output in this mode.
     """)
 }
 

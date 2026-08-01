@@ -12,7 +12,7 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 - USB & analog microphone support
 - Media-aware operation (enabled by default)
 - Optional standalone always-on intercom mode
-- Optional Software-Defined Radio (SDR) squelch mode
+- Optional Software-Defined Radio (SDR) dual-method squelch mode
 - Test tone diagnostics
 - Low-latency, high-quality streaming audio pipeline
 - Integrated AGC and WebRTC Voice Activity Detection (VAD)
@@ -49,17 +49,16 @@ MacIntercom supports several operation modes depending on how you want to handle
 
 * **Media-Aware Mode (Default):** Run `./macintercom`. The intercom automatically yields to media playback, pausing/resuming media when toggled.
 * **Standalone Mode:** Run `./macintercom --s`. The intercom ignores media playback and stays active continuously until closed with Ctrl-C.
-* **SDR Squelch Mode:** Run `./macintercom --sdr`. Mutes the Bluetooth microphone return path and uses WebRTC Voice Activity Detection to squelch the noise floor of an SDR input (e.g., routed via Soundflower).
+* **SDR Squelch Mode:** Run `./macintercom --sdr`. Mutes the Bluetooth microphone return path for SDR inputs (e.g., routed via Soundflower), supporting two squelch methods:
+  * **WebRTC VAD:** Automatically detects human voice activity in the noise floor.
+  * **CTCSS Tone Squelch:** Pass `-tone <frequency>` (e.g., `./macintercom --sdr -tone 100.0`) to trigger the gate strictly using standard sub-audible EIA/TIA tones via an optimized Goertzel filter.
 * **Test Tone Mode:** Run `./macintercom --t`. Simultaneously plays a 220 Hz tone through the computer output and a 440 Hz tone through the Bluetooth speaker.
 
-## Recommended Audio Configuration & Best Practices
+## Notes on Audio Quality
 
-To ensure the cleanest audio pipeline and lowest latency:
+* **Universal 48 kHz Sample Rate:** To ensure the cleanest audio pipeline and lowest latency, set all active input and output devices (USB microphones, Line-In, Line-Out, and virtual routing tools like Soundflower) to a fixed **48 kHz** sample rate in macOS **Audio MIDI Setup**.
 
-* **Universal 48 kHz Sample Rate:** Set all active input and output devices (USB microphones, Line-In, Line-Out, and virtual routing tools like Soundflower) to a fixed **48 kHz** sample rate in macOS **Audio MIDI Setup**.
-* **SDR Mode Input Routing:** Ensure your macOS System Sound input is set to your SDR's virtual device output (e.g. Soundflower)
-* **SDR Mode Output Routing:** When running `./macintercom --sdr`, ensure your macOS System Sound output is set to a standard **wired or built-in hardware output** (such as Built-in Speakers, your 3.5mm Line-Out, or a USB audio interface).
-* **Avoid Bluetooth for SDR:** Do not select a Bluetooth speaker or headset as your output device while running in `--sdr` mode, as Bluetooth routing forces an unwanted 8 kHz telephony downgrade that conflicts with high-fidelity SDR streaming.
+* **Bluetooth and SDR Mode:** When running `macintercom` in standard intercom mode, macOS forces Bluetooth headsets into a lower-quality telephony profile (HFP) to use the microphone. However, because `--sdr` mode uses a virtual system input instead of your Bluetooth mic, you can route the output to any Bluetooth speaker or headphone and it will remain in crisp, full-fidelity A2DP (e.g., 32-bit/48kHz).
 
 ---
 
@@ -94,7 +93,7 @@ v0.2
 
 Bluetooth
 
-- Bluetooth speaker with integrated microphone (HFP)
+- Bluetooth speaker with integrated microphone (HFP in Media-Aware & Standalone Modes, A2DP in SDR Squelch Mode)
 
 Computer Inputs
 

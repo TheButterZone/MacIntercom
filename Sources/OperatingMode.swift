@@ -9,6 +9,7 @@ enum OperatingMode {
 
 struct AppConfiguration {
     static var mode: OperatingMode = .mediaAware
+    static var sdrToneFrequency: Float? = nil
     
     static let computerOutputToneFrequency: Float = 220
     static let bluetoothOutputToneFrequency: Float = 440
