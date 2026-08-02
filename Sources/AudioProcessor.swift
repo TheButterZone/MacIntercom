@@ -84,8 +84,8 @@ final class AudioProcessor {
         let result = filter.evaluate(samples: ctcssBuffer)
 
         let openSNRThreshold: Float = 0.15
-        let holdSNRThreshold: Float = 0.08
-        let maxHoldFrames = 2
+        let holdSNRThreshold: Float = 0.015
+        let maxHoldFrames = 6
 
         let toneStrong = result.snr > openSNRThreshold
         let tonePresent = result.snr > holdSNRThreshold
