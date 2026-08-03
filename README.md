@@ -12,7 +12,7 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 - USB & analog microphone support
 - Media-aware operation (enabled by default)
 - Optional standalone always-on intercom mode
-- Optional Software-Defined Radio (SDR) dual-method squelch mode
+- Optional Software-Defined Radio (SDR) dual-method squelch mode with smart passive CTCSS tone scanner for on-the-fly frequency identification & switching
 - Test tone diagnostics
 - Low-latency, high-quality streaming audio pipeline
 - Integrated AGC and WebRTC Voice Activity Detection (VAD)
@@ -50,8 +50,9 @@ MacIntercom supports several operation modes depending on how you want to handle
 * **Media-Aware Mode (Default):** Run `./macintercom`. The intercom automatically yields to media playback, pausing/resuming media when toggled.
 * **Standalone Mode:** Run `./macintercom --s`. The intercom ignores media playback and stays active continuously until closed with Ctrl-C.
 * **SDR Squelch Mode:** Run `./macintercom --sdr`. Mutes the Bluetooth microphone return path for SDR inputs (e.g., routed via Soundflower), supporting two squelch methods:
-  * **WebRTC VAD:** Automatically detects human voice activity in the noise floor.
-  * **CTCSS Tone Squelch:** Pass `-tone <frequency>` (e.g., `./macintercom --sdr -tone 100.0`) to trigger the gate strictly using standard sub-audible EIA/TIA tones via an optimized Goertzel filter.
+  * **WebRTC VAD & Passive Scanner (Default):** Automatically detects human voice activity in the noise floor to open the gate. While running, a passive, zero-latency scanner continuously evaluates the audio and prints detected sub-audible CTCSS tones to the terminal.
+    * *Interactive Hotkey:* Pressing Return instantly locks your squelch to the last detected tone (disabling VAD). Pressing Return again while a new tone is detected hot-swaps the lock to the new tone. Pressing Esc releases the lock entirely.
+  * **CTCSS Tone Squelch:** Pass `-tone <frequency>` (e.g., `./macintercom --sdr -tone 100.0`) to disable VAD and the scanner, and enforce strict, non-interactive tone squelch startup parameters.
 * **Test Tone Mode:** Run `./macintercom --t`. Simultaneously plays a 220 Hz tone through the computer output and a 440 Hz tone through the Bluetooth speaker.
 
 ## Notes on Audio Quality

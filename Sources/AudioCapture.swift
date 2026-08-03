@@ -50,6 +50,14 @@ final class AudioCapture {
         audioProcessor.setCTCSSTone(frequency)
     }
 
+    func startKeyboardListener() {
+        audioProcessor.startKeyboardListener()
+    }
+
+    func setSDRMode(_ enabled: Bool) {
+        audioProcessor.setSDRMode(enabled)
+    }
+
     init(
         device: AudioDevice,
         outputDevice: AudioDevice,

@@ -42,8 +42,16 @@ final class IntercomEngine {
         }
     }
 
+    func setSDRMode(_ enabled: Bool) {
+        capture.setSDRMode(enabled)
+    }
+
     func setCTCSSTone(_ frequency: Float?) {
         capture.setCTCSSTone(frequency)
+    }
+
+    func startKeyboardListener() {
+        capture.startKeyboardListener()
     }
 
     init(

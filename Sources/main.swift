@@ -40,7 +40,6 @@ AVCaptureDevice.requestAccess(for: .audio) { granted in
     }
 }
 
-// Parse Command Line Arguments
 var argIndex = 1
 let args = CommandLine.arguments
 while argIndex < args.count {
@@ -181,7 +180,9 @@ computerToBluetooth.capture.onFirstCallback = {
 }
 
 if AppConfiguration.mode == .sdr {
+    computerToBluetooth.setSDRMode(true)
     computerToBluetooth.setCTCSSTone(AppConfiguration.sdrToneFrequency)
+    computerToBluetooth.startKeyboardListener()
 }
 
 computerToBluetooth.start()
