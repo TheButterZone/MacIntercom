@@ -45,15 +45,15 @@ final class AudioProcessor {
     private var lastPrintedScannerTone: Float? = nil
     private var scannerToneCandidate: Float? = nil
     private var scannerCandidateHits = 0
-    
+
     private var isCommandLineTone = false
     private var isSDRMode = false
     private var isManuallyLocked = false
     private var currentLockedTone: Float? = nil
     private var lastToggleTime = Date.distantPast
-    
+
     private let stateQueue = DispatchQueue(label: "com.macintercom.AudioProcessor.stateQueue")
-    
+
     private static var originalTermios = termios()
 
     private(set) var currentGain: Float = 1.0
@@ -67,30 +67,38 @@ final class AudioProcessor {
     }
 
     func startKeyboardListener() {
-	let shouldStart = stateQueue.sync { isSDRMode && !isCommandLineTone }
-	guard shouldStart else { return }
-        
+        let shouldStart = stateQueue.sync { isSDRMode && !isCommandLineTone }
+        guard shouldStart else { return }
+
         if isatty(STDIN_FILENO) != 0 {
             tcgetattr(STDIN_FILENO, &Self.originalTermios)
             var rawTermios = Self.originalTermios
             rawTermios.c_lflag &= ~tcflag_t(ICANON | ECHO)
             tcsetattr(STDIN_FILENO, TCSANOW, &rawTermios)
-            
+
+            print("\u{001B}[?7l", terminator: "")
+            fflush(stdout)
+
             atexit {
+                print("\u{001B}[?7h", terminator: "")
+                fflush(stdout)
                 tcsetattr(STDIN_FILENO, TCSANOW, &AudioProcessor.originalTermios)
             }
         }
-        
-	DispatchQueue.global(qos: .userInteractive).async { [weak self] in
+
+        DispatchQueue.global(qos: .userInteractive).async { [weak self] in
             while true {
-                var char: UInt8 = 0
-                let bytesRead = read(STDIN_FILENO, &char, 1)
-                
+                var buffer = [UInt8](repeating: 0, count: 16)
+                let bytesRead = read(STDIN_FILENO, &buffer, buffer.count)
+
                 if bytesRead > 0 {
-                    if char == 10 || char == 13 {
-                        self?.lockOrSwitchToneLock()
-                    } else if char == 27 { // ASCII 27 = Escape
-                        self?.unlockTone()
+                    if bytesRead == 1 {
+                        let char = buffer[0]
+                        if char == 10 || char == 13 {
+                            self?.lockOrSwitchToneLock()
+                        } else if char == 27 {
+                            self?.unlockTone()
+                        }
                     }
                 } else {
                     break
@@ -99,30 +107,49 @@ final class AudioProcessor {
         }
     }
 
+    private func updateStatusLine(_ text: String) {
+        var w = winsize()
+        var termWidth = 80
+
+        if ioctl(STDOUT_FILENO, UInt(TIOCGWINSZ), &w) == 0 && w.ws_col > 0 {
+            termWidth = Int(w.ws_col)
+        }
+
+        let maxLen = max(10, termWidth - 6)
+
+        var visibleText = text
+        if visibleText.count > maxLen {
+            let endIndex = visibleText.index(visibleText.startIndex, offsetBy: maxLen - 1)
+            visibleText = String(visibleText[..<endIndex]) + "…"
+        }
+
+        print("\r\u{001B}[2K\(visibleText)", terminator: "")
+        fflush(stdout)
+    }
+
     private func lockOrSwitchToneLock() {
         stateQueue.sync {
             guard isSDRMode && !isCommandLineTone else { return }
-            
+
             let now = Date()
             guard now.timeIntervalSince(lastToggleTime) > 0.25 else { return }
-            
+
             if !isManuallyLocked {
                 if let lockTone = self.lastPrintedScannerTone {
                     lastToggleTime = now
                     self.currentLockedTone = lockTone
                     self.isManuallyLocked = true
                     self.applyToneFilter_internal(lockTone)
-                    print("\r\u{001B}[2K🔒 [CTCSS Squelch] Locked to \(lockTone) Hz (VAD disabled - hit Esc to unlock)", terminator: "")
-                    fflush(stdout)
+                    updateStatusLine("🔒 Locked: \(lockTone) Hz [⎋ Unlock]")
                 }
             } else {
-                if let candidate = self.lastPrintedScannerTone, candidate != self.currentLockedTone {
+                if let candidate = self.lastPrintedScannerTone, candidate != self.currentLockedTone
+                {
                     lastToggleTime = now
                     self.currentLockedTone = candidate
                     self.isManuallyLocked = true
                     self.applyToneFilter_internal(candidate)
-                    print("\r\u{001B}[2K🔄 [CTCSS Squelch] Switched lock to \(candidate) Hz (hit Esc to unlock)", terminator: "")
-                    fflush(stdout)
+                    updateStatusLine("🔄 Switched: \(candidate) Hz [⎋ Unlock]")
                 }
             }
         }
@@ -131,18 +158,17 @@ final class AudioProcessor {
     private func unlockTone() {
         stateQueue.sync {
             guard isSDRMode && !isCommandLineTone else { return }
-            
+
             let now = Date()
             guard now.timeIntervalSince(lastToggleTime) > 0.25 else { return }
-            
+
             if isManuallyLocked {
                 lastToggleTime = now
                 self.currentLockedTone = nil
                 self.isManuallyLocked = false
                 self.applyToneFilter_internal(nil)
                 self.lastPrintedScannerTone = nil
-                print("\r\u{001B}[2K🔓 [CTCSS Squelch] Released lock -> WebRTC VAD & Passive Scanner running...", terminator: "")
-                fflush(stdout)
+                updateStatusLine("🔓 Squelch open (VAD & Scanner active)")
             }
         }
     }
@@ -168,7 +194,7 @@ final class AudioProcessor {
             isSDRMode = enabled
         }
     }
-    
+
     private func applyToneFilter_internal(_ frequency: Float?) {
         guard let freq = frequency else {
             self.toneFilter = nil
@@ -183,7 +209,7 @@ final class AudioProcessor {
 
         self.toneFilter = GoertzelFilter(targetFrequency: freq, sampleRate: 8000.0)
         self.ctcssBuffer = []
-        
+
         if isCommandLineTone {
             DebugTelemetry.capture.log("CTCSS Tone successfully set from CLI: \(freq) Hz")
         }
@@ -253,12 +279,12 @@ final class AudioProcessor {
             windowedBuffer[i] = scannerBuffer[i] * window
         }
 
-	var mean: Float = 0.0
+        var mean: Float = 0.0
         for sample in windowedBuffer { mean += sample }
         mean /= Float(windowedBuffer.count)
 
-	let lpfAlpha: Float = 0.18 
-        
+        let lpfAlpha: Float = 0.18
+
         var filteredSamples = [Float]()
         filteredSamples.reserveCapacity(windowedBuffer.count)
         var lowFreqPowerSum: Float = 0.0
@@ -267,7 +293,7 @@ final class AudioProcessor {
             let norm = sample - mean
             let filtered = lpfAlpha * norm + (1.0 - lpfAlpha) * scannerLastFiltered
             scannerLastFiltered = filtered
-            
+
             filteredSamples.append(filtered)
             lowFreqPowerSum += filtered * filtered
         }
@@ -285,7 +311,7 @@ final class AudioProcessor {
             var s1: Float = 0.0
             var s2: Float = 0.0
 
-	    for sample in filteredSamples {
+            for sample in filteredSamples {
                 let s0 = sample + (coeffTarget * s1) - s2
                 s2 = s1
                 s1 = s0
@@ -294,7 +320,7 @@ final class AudioProcessor {
             let rawPower = (s1 * s1) + (s2 * s2) - (coeffTarget * s1 * s2)
             let targetP = max(0.0, rawPower / normalization)
             let snr = targetP / totalPower
-            
+
             if snr > bestSNR {
                 bestSNR = snr
                 bestFreq = freq
@@ -303,28 +329,25 @@ final class AudioProcessor {
 
         let detectionSNRThreshold: Float = 0.035
 
-	if let best = bestFreq, bestSNR > detectionSNRThreshold {
+        if let best = bestFreq, bestSNR > detectionSNRThreshold {
             if best == scannerToneCandidate {
                 scannerCandidateHits += 1
-                
+
                 if scannerCandidateHits >= 4 {
-		    scannerCandidateHits = 4
+                    scannerCandidateHits = 4
 
                     if lastPrintedScannerTone != best {
-			stateQueue.sync {
+                        stateQueue.sync {
                             if isManuallyLocked {
                                 if best != currentLockedTone {
-                                    print("\r\u{001B}[2K㎐ [CTCSS Scanner] Detected Tone: \(best) Hz (hit Return to switch lock to this tone, or hit Esc to unlock)", terminator: "")
-                                    fflush(stdout)
+                                    updateStatusLine("㎐ CTCSS: \(best) Hz [⏎ Switch]")
                                     lastPrintedScannerTone = best
                                 } else {
-                                    print("\r\u{001B}[2K🔒 [CTCSS Squelch] Locked to \(best) Hz (VAD disabled - hit Esc to unlock)", terminator: "")
-                                    fflush(stdout)
+                                    updateStatusLine("🔒 Locked: \(best) Hz [⎋ Unlock]")
                                     lastPrintedScannerTone = best
                                 }
                             } else {
-                                print("\r\u{001B}[2K㎐ [CTCSS Scanner] Detected Tone: \(best) Hz (hit Return to lock tone squelch)", terminator: "")
-                                fflush(stdout)
+                                updateStatusLine("㎐ CTCSS: \(best) Hz [⏎ Lock]")
                                 lastPrintedScannerTone = best
                             }
                         }
@@ -344,9 +367,9 @@ final class AudioProcessor {
         var output = samples
         let shouldOpen: Bool
 
-let bypassScanner = stateQueue.sync { !isSDRMode || isCommandLineTone }
+        let bypassScanner = stateQueue.sync { !isSDRMode || isCommandLineTone }
 
-	if !bypassScanner {
+        if !bypassScanner {
             scanCTCSSTones(samples)
         }
 
@@ -450,7 +473,6 @@ let bypassScanner = stateQueue.sync { !isSDRMode || isCommandLineTone }
 
         let gateAttackRate: Float = 0.35
         let gateReleaseRate: Float = (toneFilter != nil) ? 0.4 : 0.18
-
 
         if targetGain > gateGain {
             gateGain += (targetGain - gateGain) * gateAttackRate

@@ -225,18 +225,25 @@ case .testTone:
     break 
 
 case .sdr:
-    let squelchMethod = AppConfiguration.sdrToneFrequency != nil 
-        ? "CTCSS Tone Squelch (\(AppConfiguration.sdrToneFrequency!) Hz) is active. WebRTC VAD disabled." 
-        : ("""
-	  WebRTC Voice Activity Detection (Squelch) and AGC are active. 
-	  To use CTCSS Tone Squelch instead of VAD, 
-	  restart with: ./macintercom --sdr -tone <frequency>
-	  """)
-    Logger.info("""
-    MacIntercom running in SDR SQUELCH mode.
+  let squelchMethod =
+    AppConfiguration.sdrToneFrequency != nil
+    ? "CTCSS Tone Squelch (\(AppConfiguration.sdrToneFrequency!) Hz) is active. WebRTC VAD disabled."
+    : ("""
+    WebRTC Voice Activity Detection (Squelch) and AGC are active. 
+    • Interactive Controls:
+      - Hit [⏎ Return] when a tone appears to lock squelch onto it.
+      - Hit [⎋ Escape] while locked to release the lock and return to VAD & Scanner.
     
-    • \(squelchMethod)
+      To use non-interactive CTCSS Tone Squelch instead, 
+      restart with: ./macintercom --sdr -tone <frequency>
+    """)
+
+  Logger.info(
+    """
+    MacIntercom running in SDR SQUELCH mode.
+
     • Bluetooth microphone disabled.
+    • \(squelchMethod)
     """)
 }
 
