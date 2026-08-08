@@ -50,8 +50,8 @@ MacIntercom supports several operation modes depending on how you want to handle
 * **Media-Aware Mode (Default):** Run `./macintercom`. The intercom automatically yields to media playback, pausing/resuming media when toggled.
 * **Standalone Mode:** Run `./macintercom --s`. The intercom ignores media playback and stays active continuously until closed with Ctrl-C.
 * **SDR Squelch Mode:** Run `./macintercom --sdr`. Mutes the Bluetooth microphone return path for SDR inputs (e.g., routed via Soundflower), supporting two squelch methods:
-  * **WebRTC VAD & Passive Scanner (Default):** Automatically detects human voice activity in the noise floor to open the gate. While running, a passive, zero-latency scanner continuously evaluates the audio and prints detected sub-audible CTCSS tones to the terminal.
-    * *Interactive Hotkey:* Pressing Return instantly locks your squelch to the last detected tone (disabling VAD). Pressing Return again while a new tone is detected hot-swaps the lock to the new tone. Pressing Esc releases the lock entirely.
+  * **WebRTC VAD & Passive Scanner (Default):** Automatically detects human voice activity in the noise floor to open the gate. While running, a passive, zero-latency scanner continuously evaluates the audio and prints detected sub-audible CTCSS tones to the terminal & Mac Menu Bar dropdown.
+    * *Interactive Hotkey:* In terminal, pressing Return instantly locks your squelch to the last detected tone (disabling VAD). Pressing Return again while a new tone is detected hot-swaps the lock to the new tone. Pressing Esc releases the lock entirely.
     * *Mac Menu Bar:* Click ⩛ when it appears while MacIntercom is running, then lock & unlock squelch.
   * **CTCSS Tone Squelch:** Pass `-tone <frequency>` (e.g., `./macintercom --sdr -tone 100.0`) to disable VAD and the scanner, and enforce strict, non-interactive tone squelch startup parameters.
 * **Test Tone Mode:** Run `./macintercom --t`. Simultaneously plays a 220 Hz tone through the computer output and a 440 Hz tone through the Bluetooth speaker.
