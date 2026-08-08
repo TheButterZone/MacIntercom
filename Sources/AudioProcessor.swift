@@ -53,8 +53,9 @@ final class AudioProcessor {
     private var lastToggleTime = Date.distantPast
 
     private let stateQueue = DispatchQueue(label: "com.macintercom.AudioProcessor.stateQueue")
-
     private static var originalTermios = termios()
+
+    var menuController: MenuController?
 
     private(set) var currentGain: Float = 1.0
     private(set) var smoothedPeak: Float = 0.05
@@ -127,7 +128,7 @@ final class AudioProcessor {
         fflush(stdout)
     }
 
-    private func lockOrSwitchToneLock() {
+    func lockOrSwitchToneLock() {
         stateQueue.sync {
             guard isSDRMode && !isCommandLineTone else { return }
 
@@ -141,21 +142,22 @@ final class AudioProcessor {
                     self.isManuallyLocked = true
                     self.applyToneFilter_internal(lockTone)
                     updateStatusLine("🔒 Locked: \(lockTone) Hz [⎋ Unlock]")
+                    menuController?.updateState(isLocked: true, lockedTone: lockTone, detectedTone: nil)
                 }
             } else {
-                if let candidate = self.lastPrintedScannerTone, candidate != self.currentLockedTone
-                {
+                if let candidate = self.lastPrintedScannerTone, candidate != self.currentLockedTone {
                     lastToggleTime = now
                     self.currentLockedTone = candidate
                     self.isManuallyLocked = true
                     self.applyToneFilter_internal(candidate)
                     updateStatusLine("🔄 Switched: \(candidate) Hz [⎋ Unlock]")
+                    menuController?.updateState(isLocked: true, lockedTone: candidate, detectedTone: nil)
                 }
             }
         }
     }
 
-    private func unlockTone() {
+    func unlockTone() {
         stateQueue.sync {
             guard isSDRMode && !isCommandLineTone else { return }
 
@@ -169,6 +171,7 @@ final class AudioProcessor {
                 self.applyToneFilter_internal(nil)
                 self.lastPrintedScannerTone = nil
                 updateStatusLine("🔓 Squelch open (VAD & Scanner active)")
+                menuController?.updateState(isLocked: false, lockedTone: nil, detectedTone: nil)
             }
         }
     }
@@ -342,13 +345,16 @@ final class AudioProcessor {
                                 if best != currentLockedTone {
                                     updateStatusLine("㎐ CTCSS: \(best) Hz [⏎ Switch]")
                                     lastPrintedScannerTone = best
+                                    menuController?.updateState(isLocked: true, lockedTone: currentLockedTone, detectedTone: best)
                                 } else {
                                     updateStatusLine("🔒 Locked: \(best) Hz [⎋ Unlock]")
                                     lastPrintedScannerTone = best
+                                    menuController?.updateState(isLocked: true, lockedTone: currentLockedTone, detectedTone: best)
                                 }
                             } else {
                                 updateStatusLine("㎐ CTCSS: \(best) Hz [⏎ Lock]")
                                 lastPrintedScannerTone = best
+                                menuController?.updateState(isLocked: false, lockedTone: nil, detectedTone: best)
                             }
                         }
                     }
@@ -360,6 +366,21 @@ final class AudioProcessor {
         } else {
             scannerToneCandidate = nil
             scannerCandidateHits = 0
+
+            if lastPrintedScannerTone != nil {
+                stateQueue.sync {
+                    lastPrintedScannerTone = nil
+                    if isManuallyLocked {
+                        if let lockTone = currentLockedTone {
+                            updateStatusLine("🔒 Locked: \(lockTone) Hz [⎋ Unlock]")
+                            menuController?.updateState(isLocked: true, lockedTone: lockTone, detectedTone: nil)
+                        }
+                    } else {
+                        updateStatusLine("Status: VAD & Scanner Active")
+                        menuController?.updateState(isLocked: false, lockedTone: nil, detectedTone: nil)
+                    }
+                }
+            }
         }
     }
 

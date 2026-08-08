@@ -247,4 +247,16 @@ case .sdr:
     """)
 }
 
+let isInteractiveSDR = (AppConfiguration.mode == .sdr && AppConfiguration.sdrToneFrequency == nil)
+let menuController = MenuController(isSDRMode: isInteractiveSDR)
+
+menuController.onLockRequested = {
+    computerToBluetooth.lockOrSwitchToneLock()
+}
+menuController.onUnlockRequested = {
+    computerToBluetooth.unlockTone()
+}
+
+computerToBluetooth.menuController = menuController
+
 app.run()

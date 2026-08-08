@@ -46,6 +46,24 @@ final class AudioCapture {
 
     var isMuted: Bool = false
 
+    var menuController: MenuController? {
+        didSet {
+            audioProcessor.menuController = menuController
+        }
+    }
+
+    func lockOrSwitchToneLock() {
+        audioProcessor.lockOrSwitchToneLock()
+    }
+
+    func unlockTone() {
+        audioProcessor.unlockTone()
+    }
+
+    func setSDRMode(_ enabled: Bool) {
+        audioProcessor.setSDRMode(enabled)
+    }
+
     func setCTCSSTone(_ frequency: Float?) {
         audioProcessor.setCTCSSTone(frequency)
     }
@@ -54,9 +72,6 @@ final class AudioCapture {
         audioProcessor.startKeyboardListener()
     }
 
-    func setSDRMode(_ enabled: Bool) {
-        audioProcessor.setSDRMode(enabled)
-    }
 
     init(
         device: AudioDevice,

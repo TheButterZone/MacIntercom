@@ -42,6 +42,20 @@ final class IntercomEngine {
         }
     }
 
+    var menuController: MenuController? {
+        didSet {
+            capture.menuController = menuController
+        }
+    }
+
+    func lockOrSwitchToneLock() {
+        capture.lockOrSwitchToneLock()
+    }
+
+    func unlockTone() {
+        capture.unlockTone()
+    }
+
     func setSDRMode(_ enabled: Bool) {
         capture.setSDRMode(enabled)
     }
