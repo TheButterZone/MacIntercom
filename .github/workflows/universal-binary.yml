@@ -59,7 +59,7 @@ jobs:
       - name: Set Permissions and Code Sign
         run: |
           chmod +x ./macintercom
-          codesign --force --options runtime --sign - ./macintercom
+          codesign --force --sign - ./macintercom
 
       - name: Zip Binary (Preserves Executable Permissions & macOS Metadata)
         run: |
