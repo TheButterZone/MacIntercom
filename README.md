@@ -2,7 +2,7 @@
 
 Bidirectional computer ↔ Bluetooth audio routing for macOS.
 
-> Development status: early release. Hardware compatibility and audio pipeline improvements are ongoing.
+> Development status: nearing feature-complete release.
 
 ## Features
 
@@ -24,7 +24,7 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 
 - macOS Catalina (10.15) or later
 - Bluetooth HFP/HSP audio device
-- Microphone permission granted to Terminal (or the GUI app in future releases)
+- Microphone permission granted to Terminal
 
 ## Installation (macOS)
 
@@ -68,28 +68,23 @@ MacIntercom supports several operation modes depending on how you want to handle
 
 Current development focuses on:
 
-- stabilizing the 0.1.x series before GUI work begins
+- Feature completeness
 
 ## Roadmap
 
-v0.1.9
-- Stabilization and regression testing
-
-v0.2
-- GUI
-- Device selection
-- Runtime settings
-- PA Mode
+- Everything under Mac Menu Bar; no GUI app
 
 ## Future Ideas
 
+- Device selection
+- More runtime settings?
 - Multiple simultaneous Bluetooth endpoints
 - Network intercom
 - Push-to-talk over keyboard
 - Audio recording
 - Optional echo cancellation backend
 - Optional AUVoiceProcessingIO backend
-- MacPorts & Homebrew packages
+- PA Mode
 
 ## Tested Hardware
 
