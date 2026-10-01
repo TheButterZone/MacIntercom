@@ -22,14 +22,24 @@ import AppKit
 class MenuController: NSObject {
     let statusItem = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
     
+    // SDR Menu Items
     let statusMenuItem = NSMenuItem(title: "MacIntercom: VAD & Scanner Active", action: nil, keyEquivalent: "")
     let lockMenuItem = NSMenuItem(title: "⏎ Lock Tone", action: #selector(lockClicked), keyEquivalent: "")
     let unlockMenuItem = NSMenuItem(title: "⎋ Unlock Squelch", action: #selector(unlockClicked), keyEquivalent: "")
     
+    // Standalone / Media-Aware Menu Items
+    let muteMenuItem = NSMenuItem(title: "🔇 Mute Intercom", action: #selector(muteClicked), keyEquivalent: "")
+    let unmuteMenuItem = NSMenuItem(title: "🔊 Unmute Intercom", action: #selector(unmuteClicked), keyEquivalent: "")
+    
+    // SDR Closures
     var onLockRequested: (() -> Void)?
     var onUnlockRequested: (() -> Void)?
     
-    init(isSDRMode: Bool) {
+    // Standalone Closures
+    var onMuteRequested: (() -> Void)?
+    var onUnmuteRequested: (() -> Void)?
+    
+    init(isSDRMode: Bool, isStandaloneMode: Bool = false) {
         super.init()
         
         statusItem.button?.title = "⩛"
@@ -47,6 +57,15 @@ class MenuController: NSObject {
             menu.addItem(unlockMenuItem)
             
             menu.addItem(NSMenuItem.separator())
+        } else if isStandaloneMode {
+            muteMenuItem.target = self
+            menu.addItem(muteMenuItem)
+            
+            unmuteMenuItem.target = self
+            unmuteMenuItem.isHidden = true // Hide unmute initially
+            menu.addItem(unmuteMenuItem)
+            
+            menu.addItem(NSMenuItem.separator())
         }
         
         let quitItem = NSMenuItem(title: "Quit", action: #selector(NSApplication.terminate(_:)), keyEquivalent: "")
@@ -55,12 +74,26 @@ class MenuController: NSObject {
         statusItem.menu = menu
     }
     
+    // MARK: - SDR Actions
     @objc func lockClicked() {
         onLockRequested?()
     }
     
     @objc func unlockClicked() {
         onUnlockRequested?()
+    }
+    
+    // MARK: - Standalone Actions
+    @objc func muteClicked() {
+        muteMenuItem.isHidden = true
+        unmuteMenuItem.isHidden = false
+        onMuteRequested?()
+    }
+    
+    @objc func unmuteClicked() {
+        unmuteMenuItem.isHidden = true
+        muteMenuItem.isHidden = false
+        onUnmuteRequested?()
     }
     
     func updateState(isLocked: Bool, lockedTone: Float?, detectedTone: Float?) {
@@ -86,6 +119,13 @@ class MenuController: NSObject {
                     self.lockMenuItem.isEnabled = false
                 }
             }
+        }
+    }
+
+    func syncMuteState(isMuted: Bool) {
+        DispatchQueue.main.async {
+            self.muteMenuItem.isHidden = isMuted
+            self.unmuteMenuItem.isHidden = !isMuted
         }
     }
 }

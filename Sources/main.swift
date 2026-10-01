@@ -128,7 +128,7 @@ if let btRoute = bluetoothRoute {
     )
 }
 
-print("MacIntercom v0.1.8-sdr — Copyright (C) 2026 TheButterZone")
+print("MacIntercom v0.1.9 — Copyright (C) 2026 TheButterZone")
 print("This program comes with ABSOLUTELY NO WARRANTY.")
 print("This is free software under the GPLv3; see the LICENSE file for details.\n")
 
@@ -137,6 +137,12 @@ bluetoothMonitor.start()
 
 var conversationController: ConversationController?
 var mediaKeyMonitor: MediaKeyMonitor?
+
+let isInteractiveSDR = (AppConfiguration.mode == .sdr && AppConfiguration.sdrToneFrequency == nil)
+let isStandaloneOrMediaAware = (AppConfiguration.mode == .standalone || AppConfiguration.mode == .mediaAware)
+
+// Single centralized MenuController instantiation
+let menuController = MenuController(isSDRMode: isInteractiveSDR, isStandaloneMode: isStandaloneOrMediaAware)
 
 switch AppConfiguration.mode {
 case .mediaAware:
@@ -150,6 +156,7 @@ case .mediaAware:
     conversationController?.onMuteStateChanged = { isMuted in
         computerToBluetooth.isMuted = isMuted
         bluetoothToComputer.isMuted = isMuted
+        menuController.syncMuteState(isMuted: isMuted)
     }
 
     conversationController?.syncInitialState()
@@ -216,7 +223,7 @@ case .standalone:
     Logger.info("""
     MacIntercom running in STANDALONE mode.
     
-    • Intercom audio is always active.
+    • Intercom audio active by default (Mute/Unmute via menu bar).
     • Media playback is ignored.
     • Any Play/Pause button behaves normally.
     """)
@@ -235,7 +242,7 @@ case .sdr:
       - Hit [⎋ Escape] while locked to release the lock and return to VAD & Scanner.
     
       To use non-interactive CTCSS Tone Squelch instead, 
-      restart with: ./macintercom --sdr -tone <frequency>
+      restart with: ./macintercom --tone <frequency>
     """)
 
   Logger.info(
@@ -247,14 +254,30 @@ case .sdr:
     """)
 }
 
-let isInteractiveSDR = (AppConfiguration.mode == .sdr && AppConfiguration.sdrToneFrequency == nil)
-let menuController = MenuController(isSDRMode: isInteractiveSDR)
-
 menuController.onLockRequested = {
     computerToBluetooth.lockOrSwitchToneLock()
 }
 menuController.onUnlockRequested = {
     computerToBluetooth.unlockTone()
+}
+
+// Manual Mute / Unmute Intercom bindings
+menuController.onMuteRequested = {
+    if let cc = conversationController {
+        cc.end(trigger: .app) // Respects media-aware controller if active
+    } else {
+        computerToBluetooth.isMuted = true
+        bluetoothToComputer.isMuted = true
+    }
+}
+
+menuController.onUnmuteRequested = {
+    if let cc = conversationController {
+        cc.begin(trigger: .app) // Respects media-aware controller if active
+    } else {
+        computerToBluetooth.isMuted = false
+        bluetoothToComputer.isMuted = false
+    }
 }
 
 computerToBluetooth.menuController = menuController
