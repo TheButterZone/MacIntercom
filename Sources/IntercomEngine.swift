@@ -170,4 +170,26 @@ final class IntercomEngine {
 
         }
     }
+
+    func stop() {
+        guard started else { return }
+
+        started = false
+
+        if AppConfiguration.mode == .testTone {
+            output.stop()
+            return
+        }
+
+        capture.stop()
+        output.stop()
+
+        DebugTelemetry.capture.log(
+            """
+            ENGINE STOPPED
+            input=\(capture.device.name)
+            output=\(output.device.name)
+            """
+        )
+    }
 }

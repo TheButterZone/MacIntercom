@@ -23,36 +23,25 @@ import Foundation
 struct AudioInspector {
 
     static func transportName(_ transport: UInt32) -> String {
-
         switch transport {
-
         case kAudioDeviceTransportTypeBuiltIn:
             return "Built-in"
-
         case kAudioDeviceTransportTypeBluetooth:
             return "Bluetooth"
-
         case kAudioDeviceTransportTypeUSB:
             return "USB"
-
         case kAudioDeviceTransportTypeAggregate:
             return "Aggregate"
-
         case kAudioDeviceTransportTypeVirtual:
             return "Virtual"
-
         case kAudioDeviceTransportTypeHDMI:
             return "HDMI"
-
         default:
             return "Unknown (\(transport))"
         }
     }
 
-    static func printBufferFrameSize(
-        _ device: AudioDevice
-    ) {
-
+    static func printBufferFrameSize(_ device: AudioDevice) {
         var address = CoreAudioHelpers.address(
             selector: kAudioDevicePropertyBufferFrameSize,
             scope: kAudioObjectPropertyScopeGlobal
@@ -71,7 +60,6 @@ struct AudioInspector {
         )
 
         if status == noErr {
-
             DebugTelemetry.capture.log(
                 """
                 BUFFER FORMAT
@@ -79,9 +67,7 @@ struct AudioInspector {
                 frames=\(frames)
                 """
             )
-
         } else {
-
             DebugTelemetry.capture.log(
                 """
                 BUFFER FORMAT ERROR
@@ -93,13 +79,12 @@ struct AudioInspector {
     }
 
     static func deviceName(_ deviceID: AudioDeviceID) -> String {
-
         var address = CoreAudioHelpers.address(
             selector: kAudioObjectPropertyName,
             scope: kAudioObjectPropertyScopeGlobal
         )
 
-	var name: CFString = "" as CFString
+        var name: CFString = "" as CFString
         var size = UInt32(MemoryLayout<CFString>.size)
 
         let status = withUnsafeMutablePointer(to: &name) { namePtr in
@@ -121,13 +106,12 @@ struct AudioInspector {
     }
 
     static func deviceUID(_ deviceID: AudioDeviceID) -> String {
-
         var address = CoreAudioHelpers.address(
             selector: kAudioDevicePropertyDeviceUID,
             scope: kAudioObjectPropertyScopeGlobal
         )
 
-	var uid: CFString = "" as CFString
+        var uid: CFString = "" as CFString
         var size = UInt32(MemoryLayout<CFString>.size)
 
         let status = withUnsafeMutablePointer(to: &uid) { uidPtr in
@@ -149,7 +133,6 @@ struct AudioInspector {
     }
 
     static func transportType(_ deviceID: AudioDeviceID) -> UInt32 {
-
         var address = CoreAudioHelpers.address(
             selector: kAudioDevicePropertyTransportType,
             scope: kAudioObjectPropertyScopeGlobal
@@ -174,10 +157,7 @@ struct AudioInspector {
         return transport
     }
 
-    static func nominalSampleRate(
-        _ deviceID: AudioDeviceID
-    ) -> Double {
-
+    static func nominalSampleRate(_ deviceID: AudioDeviceID) -> Double {
         var address = CoreAudioHelpers.address(
             selector: kAudioDevicePropertyNominalSampleRate,
             scope: kAudioObjectPropertyScopeGlobal
@@ -206,7 +186,6 @@ struct AudioInspector {
         _ deviceID: AudioDeviceID,
         scope: AudioObjectPropertyScope
     ) -> Int {
-
         var address = CoreAudioHelpers.address(
             selector: kAudioDevicePropertyStreamConfiguration,
             scope: scope
@@ -247,7 +226,6 @@ struct AudioInspector {
         }
 
         let buffers = UnsafeMutableAudioBufferListPointer(bufferList)
-
         var total = 0
 
         for buffer in buffers {
@@ -258,7 +236,6 @@ struct AudioInspector {
     }
 
     static func makeDevice(_ id: AudioDeviceID) -> AudioDevice {
-
         return AudioDevice(
             id: id,
             uid: deviceUID(id),
@@ -274,11 +251,9 @@ struct AudioInspector {
             ),
             sampleRate: nominalSampleRate(id)
         )
-
     }
 
     static func defaultOutputDevice() -> AudioDevice? {
-
         var address = CoreAudioHelpers.address(
             selector: kAudioHardwarePropertyDefaultOutputDevice,
             scope: kAudioObjectPropertyScopeGlobal
@@ -296,15 +271,11 @@ struct AudioInspector {
             &deviceID
         )
 
-        guard status == noErr else {
-            return nil
-        }
-
+        guard status == noErr else { return nil }
         return makeDevice(deviceID)
     }
 
     static func defaultInputDevice() -> AudioDevice? {
-
         var address = CoreAudioHelpers.address(
             selector: kAudioHardwarePropertyDefaultInputDevice,
             scope: kAudioObjectPropertyScopeGlobal
@@ -322,25 +293,16 @@ struct AudioInspector {
             &deviceID
         )
 
-        guard status == noErr else {
-            return nil
-        }
-
+        guard status == noErr else { return nil }
         return makeDevice(deviceID)
     }
 
     static func findIntercomRoute(
         _ endpoints: [BluetoothEndpoint]
     ) -> IntercomRoute? {
-
-        guard
-            let bluetooth = endpoints.first(
-                where: { $0.output != nil }
-            )
-        else {
+        guard let bluetooth = endpoints.first(where: { $0.output != nil }) else {
             return nil
         }
-
         guard let selectedInput = defaultInputDevice() else {
             return nil
         }
@@ -352,19 +314,11 @@ struct AudioInspector {
     }
 
     static func bluetoothToComputerRoute() -> IntercomRoute? {
+        let endpoints = groupBluetoothEndpoints(enumerateDevices())
 
-        let endpoints = groupBluetoothEndpoints(
-            enumerateDevices()
-        )
-
-        guard
-            let bluetooth = endpoints.first(
-                where: { $0.input != nil }
-            )
-        else {
+        guard let bluetooth = endpoints.first(where: { $0.input != nil }) else {
             return nil
         }
-
         guard let computer = defaultOutputDevice() else {
             return nil
         }
@@ -376,19 +330,11 @@ struct AudioInspector {
     }
 
     static func computerToBluetoothRoute() -> IntercomRoute? {
+        let endpoints = groupBluetoothEndpoints(enumerateDevices())
 
-        let endpoints = groupBluetoothEndpoints(
-            enumerateDevices()
-        )
-
-        guard
-            let bluetooth = endpoints.first(
-                where: { $0.output != nil }
-            )
-        else {
+        guard let bluetooth = endpoints.first(where: { $0.output != nil }) else {
             return nil
         }
-
         guard let input = defaultInputDevice() else {
             return nil
         }
@@ -400,15 +346,9 @@ struct AudioInspector {
     }
 
     static func systemDefaultRoute() -> IntercomRoute? {
-        
-        guard let input = defaultInputDevice() else {
-            return nil
-        }
-        
-        guard let output = defaultOutputDevice() else {
-            return nil
-        }
-        
+        guard let input = defaultInputDevice() else { return nil }
+        guard let output = defaultOutputDevice() else { return nil }
+
         return IntercomRoute(
             input: input,
             output: output
@@ -418,20 +358,12 @@ struct AudioInspector {
     static func groupBluetoothEndpoints(
         _ devices: [AudioDevice]
     ) -> [BluetoothEndpoint] {
-
         var groups: [String: BluetoothEndpoint] = [:]
 
         for device in devices {
-
-            guard device.transport == "Bluetooth" else {
-                continue
-            }
-
+            guard device.transport == "Bluetooth" else { continue }
             let parts = device.uid.split(separator: ":")
-
-            guard parts.count > 1 else {
-                continue
-            }
+            guard parts.count > 1 else { continue }
 
             let baseUID = String(parts[0])
 
@@ -457,14 +389,12 @@ struct AudioInspector {
     }
 
     static func enumerateDevices() -> [AudioDevice] {
-
         var propertyAddress = CoreAudioHelpers.address(
             selector: kAudioHardwarePropertyDevices,
             scope: kAudioObjectPropertyScopeGlobal
         )
 
         var dataSize: UInt32 = 0
-
         let systemObject = AudioObjectID(kAudioObjectSystemObject)
 
         var status = AudioObjectGetPropertyDataSize(
@@ -475,16 +405,10 @@ struct AudioInspector {
             &dataSize
         )
 
-        if status != noErr {
-            return []
-        }
+        if status != noErr { return [] }
 
         let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
-
-        var deviceIDs = Array(
-            repeating: AudioDeviceID(),
-            count: deviceCount
-        )
+        var deviceIDs = Array(repeating: AudioDeviceID(), count: deviceCount)
 
         status = AudioObjectGetPropertyData(
             systemObject,
@@ -495,17 +419,23 @@ struct AudioInspector {
             &deviceIDs
         )
 
-        if status != noErr {
-            return []
-        }
+        if status != noErr { return [] }
 
         return deviceIDs.map { id in
             makeDevice(id)
         }
     }
 
-    static func inspect() -> String {
+    // MARK: - Device Filtering for Submenus
+    static func allInputDevices() -> [AudioDevice] {
+        return enumerateDevices().filter { $0.inputChannels > 0 }
+    }
 
+    static func allOutputDevices() -> [AudioDevice] {
+        return enumerateDevices().filter { $0.outputChannels > 0 }
+    }
+
+    static func inspect() -> String {
         var propertyAddress = CoreAudioHelpers.address(
             selector: kAudioHardwarePropertyDevices,
             scope: kAudioObjectPropertyScopeGlobal
@@ -526,7 +456,6 @@ struct AudioInspector {
         }
 
         let deviceCount = Int(dataSize) / MemoryLayout<AudioDeviceID>.size
-
         var deviceIDs = Array(repeating: AudioDeviceID(), count: deviceCount)
 
         status = AudioObjectGetPropertyData(
@@ -547,7 +476,6 @@ struct AudioInspector {
         text += "Core Audio reports \(deviceCount) audio device(s).\n\n"
 
         for id in deviceIDs {
-
             let device = makeDevice(id)
             devices.append(device)
 
@@ -579,19 +507,14 @@ struct AudioInspector {
         }
 
         if let route = findIntercomRoute(endpoints) {
-
             text += "Intercom Route Found:\n\n"
-
             text += "Input:\n"
             text += "  \(route.input.name)\n"
             text += "  Device ID: \(route.input.id)\n\n"
-
             text += "Output:\n"
             text += "  \(route.output.name)\n"
             text += "  Device ID: \(route.output.id)\n\n"
-
         } else {
-
             text += "No intercom route found.\n\n"
         }
 

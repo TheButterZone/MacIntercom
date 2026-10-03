@@ -228,6 +228,29 @@ final class AudioCapture {
         }
     }
 
+    func stop() {
+
+        guard let ioProcID = ioProcID else {
+            return
+        }
+
+        AudioDeviceStop(
+            device.id,
+            ioProcID
+        )
+
+        AudioDeviceDestroyIOProcID(
+            device.id,
+            ioProcID
+        )
+
+        self.ioProcID = nil
+
+        Logger.info(
+            "Stopped capture: \(device.name)"
+        )
+    }
+
     private func captureInput(
         _ inInputData: UnsafePointer<AudioBufferList>?
     ) {

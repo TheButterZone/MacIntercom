@@ -10,6 +10,7 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 - Automatic hardware format detection
 - Integrated Bluetooth microphone support
 - USB & analog microphone support
+- Mac Menu Bar mute/unmute & device selection
 - Media-aware operation (enabled by default)
 - Optional standalone always-on intercom mode
 - Optional Software-Defined Radio (SDR) dual-method squelch mode with smart passive CTCSS tone scanner for on-the-fly frequency identification & switching
@@ -76,8 +77,6 @@ Current development focuses on:
 
 ## Future Ideas
 
-- Device selection
-- PA Mode
 - More runtime settings?
 - Multiple simultaneous Bluetooth endpoints
 - Network intercom
