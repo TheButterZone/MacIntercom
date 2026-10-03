@@ -10,7 +10,7 @@ Bidirectional computer ↔ Bluetooth audio routing for macOS.
 - Automatic hardware format detection
 - Integrated Bluetooth microphone support
 - USB & analog microphone support
-- Mac Menu Bar mute/unmute & device selection
+- Mac Menu Bar device selection & mute/unmute
 - Media-aware operation (enabled by default)
 - Optional standalone always-on intercom mode
 - Optional Software-Defined Radio (SDR) dual-method squelch mode with smart passive CTCSS tone scanner for on-the-fly frequency identification & switching
@@ -44,18 +44,27 @@ Because it is signed ad-hoc (rather than using an official Apple Developer accou
    ```
    ./macintercom
    ```
+
 ## Running MacIntercom
 
 MacIntercom supports several operation modes depending on how you want to handle media integration, test tones, or Software-Defined Radio (SDR) inputs.
 
-* **Media-Aware Mode (Default):** Run `./macintercom`. The intercom automatically yields to media playback, pausing/resuming media when toggled.
-* **Standalone Mode:** Run `./macintercom --s`. The intercom ignores media playback and stays active continuously unless toggled in the Mac Menu Bar dropdown, or closed with Ctrl-C.
+* **Media-Aware Mode (Default):** Run `./macintercom`. The intercom automatically yields to media playback, pausing/resuming media when toggled. 
+* **Standalone Mode:** Run `./macintercom --s`. The intercom ignores media playback.
 * **SDR Squelch Mode:** Run `./macintercom --sdr`. Mutes the Bluetooth microphone return path for SDR inputs (e.g., routed via Soundflower), supporting two squelch methods:
   * **WebRTC VAD & Passive Scanner (Default):** Automatically detects human voice activity in the noise floor to open the gate. While running, a passive, zero-latency scanner continuously evaluates the audio and prints detected sub-audible CTCSS tones to the terminal & Mac Menu Bar dropdown.
     * *Interactive Hotkey:* In terminal, pressing Return instantly locks your squelch to the last detected tone (disabling VAD). Pressing Return again while a new tone is detected hot-swaps the lock to the new tone. Pressing Esc releases the lock entirely.
     * *Mac Menu Bar:* Click ⩛ when it appears while MacIntercom is running, then lock & unlock squelch.
   * **CTCSS Tone Squelch:** Pass `--tone <frequency>` (e.g., `./macintercom --tone 100.0`) to disable VAD and the scanner, and enforce strict, non-interactive tone squelch startup parameters, without also needing to specify `--sdr`.
 * **Test Tone Mode:** Run `./macintercom --t`. Simultaneously plays a 220 Hz tone through the computer output and a 440 Hz tone through the Bluetooth speaker.
+
+## Audio Routing & Device Selection Menu
+
+MacIntercom includes a status menu bar item (`⩛`) that provides real-time control over your audio devices, squelch state, and routing without needing to restart the app:
+
+* **Broadcast & Return Devices (Standalone / Media-Aware Modes):** Click the menu item to dynamically switch your **Broadcast Input/Output** (Mac → Remote) or **Return Input/Output** (Remote → Mac) on the fly. The app automatically handles engine teardown, reconfiguration, and restart for the newly selected devices.
+* **SDR Input Selection (SDR Mode):** In SDR Squelch mode, the menu displays your active CTCSS tone or VAD status and provides a dropdown to instantly change your SDR audio capture input.
+* **Manual Mute / Unmute:** Toggle intercom audio streams manually straight from the menu bar without affecting your media playback state.
 
 ## Notes on Audio Quality
 

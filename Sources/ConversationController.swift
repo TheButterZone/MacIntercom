@@ -51,14 +51,13 @@ final class ConversationController {
     }
 
     func syncInitialState() {
-        
         let isPlaying = MediaPlaybackState.shared.isPlaying
         
         Logger.info(
             "Initial playback state on run: \(isPlaying ? "PLAYING" : "PAUSED")"
         )
 
-        applyMuteState(isPlaying)
+        applyMuteState(isPlaying, trigger: .app)
     }
 
     private func playbackChanged(
@@ -70,19 +69,23 @@ final class ConversationController {
     }
 
     private func applyMuteState(
-        _ isPlaying: Bool
+        _ isPlaying: Bool,
+        trigger: Trigger? = nil
     ) {
-        
         if isPlaying {
-            Logger.info(
-                "Media is playing → Muting intercom audio buffers."
-            )
+            if trigger != .app {
+                Logger.info(
+                    "Media is playing → Muting intercom audio buffers."
+                )
+            }
             onMuteStateChanged?(true)  // Mute / 0-buffer
             state = .idle
         } else {
-            Logger.info(
-                "Media is paused → Unmuting intercom audio buffers."
-            )
+            if trigger != .app {
+                Logger.info(
+                    "Media is paused → Unmuting intercom audio buffers."
+                )
+            }
             onMuteStateChanged?(false)  // Unmute
             state = .active
         }
@@ -91,19 +94,19 @@ final class ConversationController {
     func begin(
         trigger: Trigger
     ) {
-        applyMuteState(false)
+        applyMuteState(false, trigger: trigger)
     }
 
     func end(
         trigger: Trigger
     ) {
-        applyMuteState(true)
+        applyMuteState(true, trigger: trigger)
     }
 
     func toggle(
         trigger: Trigger
     ) {
         let currentPlaying = MediaPlaybackState.shared.isPlaying
-        applyMuteState(!currentPlaying)
+        applyMuteState(!currentPlaying, trigger: trigger)
     }
 }

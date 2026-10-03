@@ -138,14 +138,20 @@ bluetoothMonitor.start()
 var conversationController: ConversationController?
 var mediaKeyMonitor: MediaKeyMonitor?
 
-let isInteractiveSDR = (AppConfiguration.mode == .sdr && AppConfiguration.sdrToneFrequency == nil)
+let isSDR = (AppConfiguration.mode == .sdr)
+let fixedTone = AppConfiguration.sdrToneFrequency
 let isStandaloneOrMediaAware = (AppConfiguration.mode == .standalone || AppConfiguration.mode == .mediaAware)
 
-let menuController = MenuController(isSDRMode: isInteractiveSDR, isStandaloneMode: isStandaloneOrMediaAware)
+let menuController = MenuController(isSDRMode: isSDR, fixedTone: fixedTone, isStandaloneMode: isStandaloneOrMediaAware)
 
-// Populate initial device submenus in MenuController if in Interactive mode
+// Link menuController to computerToBluetooth immediately
+computerToBluetooth.menuController = menuController
+
+// Populate initial device submenus in MenuController if in SDR or Standalone/Media-Aware mode
 if isStandaloneOrMediaAware {
     menuController.rebuildDeviceMenus(broadcastRoute: computerRoute, returnRoute: bluetoothRoute)
+} else if isSDR {
+    menuController.rebuildSDRMenu(currentInput: computerRoute.input)
 }
 
 switch AppConfiguration.mode {
@@ -290,6 +296,7 @@ menuController.onBroadcastInputSelected = { newDevice in
     computerToBluetooth.stop()
     computerRoute = IntercomRoute(input: newDevice, output: computerRoute.output)
     computerToBluetooth = IntercomEngine(name: "Computer→Output", route: computerRoute, shouldDownsample: true, primeBuffer: true)
+    computerToBluetooth.menuController = menuController
     computerToBluetooth.start()
     menuController.rebuildDeviceMenus(broadcastRoute: computerRoute, returnRoute: bluetoothRoute)
 }
@@ -298,6 +305,7 @@ menuController.onBroadcastOutputSelected = { newDevice in
     computerToBluetooth.stop()
     computerRoute = IntercomRoute(input: computerRoute.input, output: newDevice)
     computerToBluetooth = IntercomEngine(name: "Computer→Output", route: computerRoute, shouldDownsample: true, primeBuffer: true)
+    computerToBluetooth.menuController = menuController
     computerToBluetooth.start()
     menuController.rebuildDeviceMenus(broadcastRoute: computerRoute, returnRoute: bluetoothRoute)
 }
@@ -320,6 +328,18 @@ menuController.onReturnOutputSelected = { newDevice in
     menuController.rebuildDeviceMenus(broadcastRoute: computerRoute, returnRoute: bluetoothRoute)
 }
 
-computerToBluetooth.menuController = menuController
+menuController.onSDRInputSelected = { newDevice in
+    computerToBluetooth.stop()
+    computerRoute = IntercomRoute(input: newDevice, output: computerRoute.output)
+    computerToBluetooth = IntercomEngine(name: "Computer→Output", route: computerRoute, shouldDownsample: true, primeBuffer: true)
+    
+    computerToBluetooth.setSDRMode(true)
+    computerToBluetooth.setCTCSSTone(AppConfiguration.sdrToneFrequency)
+    computerToBluetooth.startKeyboardListener()
+    computerToBluetooth.menuController = menuController
+    
+    computerToBluetooth.start()
+    menuController.rebuildSDRMenu(currentInput: newDevice)
+}
 
 app.run()

@@ -27,6 +27,7 @@ class MenuController: NSObject {
     let statusMenuItem = NSMenuItem(title: "MacIntercom: VAD & Scanner Active", action: nil, keyEquivalent: "")
     let lockMenuItem = NSMenuItem(title: "⏎ Lock Tone", action: #selector(lockClicked), keyEquivalent: "")
     let unlockMenuItem = NSMenuItem(title: "⎋ Unlock Squelch", action: #selector(unlockClicked), keyEquivalent: "")
+    let sdrInputMenuItem = NSMenuItem(title: "SDR Input", action: nil, keyEquivalent: "")
 
     // Standalone / Media-Aware Menu Items
     let muteMenuItem = NSMenuItem(title: "🔇 Mute Intercom", action: #selector(muteClicked), keyEquivalent: "")
@@ -41,6 +42,7 @@ class MenuController: NSObject {
     // SDR Closures
     var onLockRequested: (() -> Void)?
     var onUnlockRequested: (() -> Void)?
+    var onSDRInputSelected: ((AudioDevice) -> Void)?
 
     // Standalone / Media-Aware Closures
     var onMuteRequested: (() -> Void)?
@@ -51,7 +53,7 @@ class MenuController: NSObject {
     var onReturnInputSelected: ((AudioDevice) -> Void)?
     var onReturnOutputSelected: ((AudioDevice) -> Void)?
 
-    init(isSDRMode: Bool, isStandaloneMode: Bool = false) {
+    init(isSDRMode: Bool, fixedTone: Float? = nil, isStandaloneMode: Bool = false) {
         super.init()
 
         statusItem.button?.title = "⩛"
@@ -62,12 +64,18 @@ class MenuController: NSObject {
             menu.addItem(statusMenuItem)
             menu.addItem(NSMenuItem.separator())
 
-            lockMenuItem.target = self
-            menu.addItem(lockMenuItem)
+            if let tone = fixedTone {
+                statusMenuItem.title = "🔒 Tone Squelch: \(tone) Hz"
+            } else {
+                lockMenuItem.target = self
+                menu.addItem(lockMenuItem)
 
-            unlockMenuItem.target = self
-            menu.addItem(unlockMenuItem)
-
+                unlockMenuItem.target = self
+                menu.addItem(unlockMenuItem)
+                menu.addItem(NSMenuItem.separator())
+            }
+            
+            menu.addItem(sdrInputMenuItem)
             menu.addItem(NSMenuItem.separator())
         } else if isStandaloneMode {
             // Mute / Unmute
@@ -106,6 +114,17 @@ class MenuController: NSObject {
     }
 
     // MARK: - Populate Device Menus
+    
+    func rebuildSDRMenu(currentInput: AudioDevice) {
+        let inputs = AudioInspector.allInputDevices()
+        sdrInputMenuItem.title = "Input: \(currentInput.name)"
+        sdrInputMenuItem.submenu = createDeviceSubmenu(
+            devices: inputs,
+            selectedID: currentInput.id,
+            action: #selector(selectSDRInput(_:))
+        )
+    }
+    
     func rebuildDeviceMenus(
         broadcastRoute: IntercomRoute,
         returnRoute: IntercomRoute?
@@ -204,6 +223,11 @@ class MenuController: NSObject {
 
     @objc func unlockClicked() {
         onUnlockRequested?()
+    }
+    
+    @objc func selectSDRInput(_ sender: NSMenuItem) {
+        guard let device = sender.representedObject as? AudioDevice else { return }
+        onSDRInputSelected?(device)
     }
 
     // MARK: - Standalone / Media Actions
