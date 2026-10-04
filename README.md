@@ -87,9 +87,6 @@ Current development focuses on:
 ## Future Ideas
 
 - More runtime settings?
-- Multiple simultaneous Bluetooth endpoints
-- Network intercom
-- Audio recording
 - Optional echo cancellation backend
 - Optional AUVoiceProcessingIO backend
 
@@ -105,7 +102,6 @@ Computer Inputs
 - 3.5 mm analog lavalier microphone (battery-powered)
 - Mixer line input (48V-powered & unpowered microphones)
 - [Soundflower v2.0b2](https://github.com/mattingalls/soundflower)
- 
 
 Computer Outputs
 
