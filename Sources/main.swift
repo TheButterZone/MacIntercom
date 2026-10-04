@@ -128,7 +128,7 @@ if let btRoute = bluetoothRoute {
     )
 }
 
-print("MacIntercom v0.2.0 — Copyright (C) 2026 TheButterZone")
+print("MacIntercom v0.2.1 — Copyright (C) 2026 TheButterZone")
 print("This program comes with ABSOLUTELY NO WARRANTY.")
 print("This is free software under the GPLv3; see the LICENSE file for details.\n")
 
@@ -143,6 +143,24 @@ let fixedTone = AppConfiguration.sdrToneFrequency
 let isStandaloneOrMediaAware = (AppConfiguration.mode == .standalone || AppConfiguration.mode == .mediaAware)
 
 let menuController = MenuController(isSDRMode: isSDR, fixedTone: fixedTone, isStandaloneMode: isStandaloneOrMediaAware)
+
+// Instantiate recorder and wire menu actions
+let intercomRecorder = IntercomRecorder()
+menuController.onStartRecordingRequested = {
+    _ = intercomRecorder.startRecording()
+}
+menuController.onStopRecordingRequested = {
+    intercomRecorder.stopRecording()
+}
+
+// Tap live audio streams for synchronized two-way recording
+computerToBluetooth.onAudioCaptured = { samples in
+    intercomRecorder.appendLocalSamples(samples)
+}
+
+bluetoothToComputer.onAudioCaptured = { samples in
+    intercomRecorder.appendRemoteSamples(samples)
+}
 
 // Link menuController to computerToBluetooth immediately
 computerToBluetooth.menuController = menuController
@@ -296,6 +314,9 @@ menuController.onBroadcastInputSelected = { newDevice in
     computerToBluetooth.stop()
     computerRoute = IntercomRoute(input: newDevice, output: computerRoute.output)
     computerToBluetooth = IntercomEngine(name: "Computer→Output", route: computerRoute, shouldDownsample: true, primeBuffer: true)
+    computerToBluetooth.onAudioCaptured = { samples in
+        intercomRecorder.appendLocalSamples(samples)
+    }
     computerToBluetooth.menuController = menuController
     computerToBluetooth.start()
     menuController.rebuildDeviceMenus(broadcastRoute: computerRoute, returnRoute: bluetoothRoute)
@@ -305,6 +326,9 @@ menuController.onBroadcastOutputSelected = { newDevice in
     computerToBluetooth.stop()
     computerRoute = IntercomRoute(input: computerRoute.input, output: newDevice)
     computerToBluetooth = IntercomEngine(name: "Computer→Output", route: computerRoute, shouldDownsample: true, primeBuffer: true)
+    computerToBluetooth.onAudioCaptured = { samples in
+        intercomRecorder.appendLocalSamples(samples)
+    }
     computerToBluetooth.menuController = menuController
     computerToBluetooth.start()
     menuController.rebuildDeviceMenus(broadcastRoute: computerRoute, returnRoute: bluetoothRoute)
@@ -315,6 +339,9 @@ menuController.onReturnInputSelected = { newDevice in
     bluetoothToComputer.stop()
     bluetoothRoute = IntercomRoute(input: newDevice, output: currentBtRoute.output)
     bluetoothToComputer = IntercomEngine(name: "BT→Computer", route: bluetoothRoute!, shouldDownsample: false, primeBuffer: true)
+    bluetoothToComputer.onAudioCaptured = { samples in
+        intercomRecorder.appendRemoteSamples(samples)
+    }
     bluetoothToComputer.start()
     menuController.rebuildDeviceMenus(broadcastRoute: computerRoute, returnRoute: bluetoothRoute)
 }
@@ -324,6 +351,9 @@ menuController.onReturnOutputSelected = { newDevice in
     bluetoothToComputer.stop()
     bluetoothRoute = IntercomRoute(input: currentBtRoute.input, output: newDevice)
     bluetoothToComputer = IntercomEngine(name: "BT→Computer", route: bluetoothRoute!, shouldDownsample: false, primeBuffer: true)
+    bluetoothToComputer.onAudioCaptured = { samples in
+        intercomRecorder.appendRemoteSamples(samples)
+    }
     bluetoothToComputer.start()
     menuController.rebuildDeviceMenus(broadcastRoute: computerRoute, returnRoute: bluetoothRoute)
 }
@@ -332,6 +362,9 @@ menuController.onSDRInputSelected = { newDevice in
     computerToBluetooth.stop()
     computerRoute = IntercomRoute(input: newDevice, output: computerRoute.output)
     computerToBluetooth = IntercomEngine(name: "Computer→Output", route: computerRoute, shouldDownsample: true, primeBuffer: true)
+    computerToBluetooth.onAudioCaptured = { samples in
+        intercomRecorder.appendLocalSamples(samples)
+    }
     
     computerToBluetooth.setSDRMode(true)
     computerToBluetooth.setCTCSSTone(AppConfiguration.sdrToneFrequency)

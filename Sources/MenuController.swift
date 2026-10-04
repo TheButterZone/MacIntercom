@@ -32,6 +32,9 @@ class MenuController: NSObject {
     // Standalone / Media-Aware Menu Items
     let muteMenuItem = NSMenuItem(title: "🔇 Mute Intercom", action: #selector(muteClicked), keyEquivalent: "")
     let unmuteMenuItem = NSMenuItem(title: "🔊 Unmute Intercom", action: #selector(unmuteClicked), keyEquivalent: "")
+    let recordToggleMenuItem = NSMenuItem(title: "🔴 Start Intercom Recording", action: #selector(recordToggleClicked), keyEquivalent: "r")
+    var onStartRecordingRequested: (() -> Void)?
+    var onStopRecordingRequested: (() -> Void)?
 
     // Device Submenu Placeholders
     let broadcastInputMenuItem = NSMenuItem(title: "Broadcast Input", action: nil, keyEquivalent: "")
@@ -86,6 +89,8 @@ class MenuController: NSObject {
             unmuteMenuItem.isHidden = true
             menu.addItem(unmuteMenuItem)
 
+            recordToggleMenuItem.target = self
+            menu.addItem(recordToggleMenuItem)
             menu.addItem(NSMenuItem.separator())
 
             // Broadcast Route Section
@@ -241,6 +246,16 @@ class MenuController: NSObject {
         unmuteMenuItem.isHidden = true
         muteMenuItem.isHidden = false
         onUnmuteRequested?()
+    }
+
+    @objc func recordToggleClicked() {
+        if recordToggleMenuItem.title.contains("Start") {
+            recordToggleMenuItem.title = "⏹️ Stop Intercom Recording"
+            onStartRecordingRequested?()
+        } else {
+            recordToggleMenuItem.title = "🔴 Start Intercom Recording"
+            onStopRecordingRequested?()
+        }
     }
 
     func updateState(isLocked: Bool, lockedTone: Float?, detectedTone: Float?) {

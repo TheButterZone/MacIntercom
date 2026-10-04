@@ -87,9 +87,6 @@ Current development focuses on:
 ## Future Ideas
 
 - More runtime settings?
-- Multiple simultaneous Bluetooth endpoints
-- Network intercom
-- Audio recording
 - Optional echo cancellation backend
 - Optional AUVoiceProcessingIO backend
 

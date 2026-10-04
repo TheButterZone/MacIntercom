@@ -36,6 +36,9 @@ final class AudioBuffer {
     private let maxQueued = 96000
 
     let name: String
+    
+    // Broadcast audio samples as they enter the buffer
+    var onAudioWritten: (([Float]) -> Void)?
 
     init(name: String = "buffer") {
 
@@ -100,6 +103,9 @@ final class AudioBuffer {
         writtenThisSecond += newSamples.count
 
         lock.unlock()
+        
+        // Broadcast the samples to IntercomRecorder
+        onAudioWritten?(newSamples)
     }
 
     func read(count: Int) -> [Float] {

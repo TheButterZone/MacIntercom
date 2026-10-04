@@ -30,6 +30,12 @@ final class IntercomEngine {
 
     private var started = false
 
+    var onAudioCaptured: (([Float]) -> Void)? {
+        didSet {
+            buffer.onAudioWritten = onAudioCaptured
+        }
+    }
+
     var isMuted: Bool = false {
         didSet {
             guard isMuted != oldValue else { return }
